@@ -1,7 +1,8 @@
 # App cache: reuse a built simulator app
 
-Status: built on branch `claude/app-cache-e30d0a`, not released yet. Feasibility pass and evidence,
-17 Nov 2026, on an Apple M5 Mac, Xcode 27.2 (27B52), macOS 27.0.
+Part of fast-ios 0.4.0. Feasibility pass and evidence, 17 Nov 2026, on an
+Apple M5 Mac, Xcode 27.2 (27B52), macOS 27.0. Back to the
+[README](../README.md).
 
 **Main point.** When many agents work in separate git worktrees of one app,
 each one compiles the same native app. fast-ios now keys each built

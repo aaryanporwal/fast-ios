@@ -17,7 +17,7 @@ Install (recommended): `curl -fsSL https://raw.githubusercontent.com/aaryanporwa
 - `fast-ios off`: every simulator back to full; the background helper is removed.
 - `fast-ios run`: from the project folder, open the app on a light simulator. At a terminal it opens the Simulator window; with `--json` or `--headless` it opens none.
 - If another tool (simslim's watch helper) already turns off simulator services, `fast-ios on` changes nothing and says how to turn that tool off first.
-- Uninstall: https://github.com/aaryanporwal/fast-ios#uninstall lists every step and every file fast-ios writes.
+- Uninstall: `fast-ios uninstall` turns fast-ios off and deletes its files, then lists what only the user can remove (the app, the command link); `--dry-run` changes nothing. Every step by hand: https://github.com/aaryanporwal/fast-ios/blob/main/docs/uninstall.md
 
 ## Rules for agents
 
@@ -93,6 +93,9 @@ On iOS 27.0: photos (`assetsd`) and contacts (`contactsd`) were turned back on 1
 ## Links
 
 - [Source and README](https://github.com/aaryanporwal/fast-ios)
-- [Benchmarks, raw output](https://github.com/aaryanporwal/fast-ios/tree/main/docs/bench)
+- [Commands](https://github.com/aaryanporwal/fast-ios/blob/main/docs/commands.md)
+- [For coding agents: run, lease, MCP, skill, shot](https://github.com/aaryanporwal/fast-ios/blob/main/docs/agents.md)
+- [How it works, self-repair, limits](https://github.com/aaryanporwal/fast-ios/blob/main/docs/how-it-works.md)
+- [Benchmarks: method and every run](https://github.com/aaryanporwal/fast-ios/blob/main/docs/benchmarks.md), [raw output](https://github.com/aaryanporwal/fast-ios/tree/main/docs/bench)
 - [JSON output samples](https://github.com/aaryanporwal/fast-ios/blob/main/docs/json-output.md)
 - [simslim](https://github.com/MobAI-App/simslim): the MIT project whose launchd-store approach and service catalog fast-ios follows

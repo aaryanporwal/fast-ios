@@ -185,7 +185,7 @@ An error, `fast-ios measure nope --json` (exit code 1):
 }
 ```
 
-`fast-ios shot` output is in the [README](../README.md#shot-see-the-screen-in-one-call).
+`fast-ios shot` output is in [agents.md](agents.md#shot-see-the-screen-in-one-call).
 
 ## App cache
 
