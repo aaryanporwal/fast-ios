@@ -1,0 +1,101 @@
+# fast-ios
+
+> fast-ios makes iOS simulators need about a third of the memory. A full iPhone simulator starts close to 280 background processes and uses almost 3 GB, mostly for services the app never touches (widgets, Siri, iCloud, Maps); fast-ios turns those off before the simulator starts. A simulator is "light" when those services are off and "full" when every service runs, as Xcode sets it up. `fast-ios on` keeps every simulator on the Mac light; `fast-ios off` puts every simulator back to full; `fast-ios` alone shows whether it is on, what is running, what is saved and the next step. Measured on one iPhone 18 Pro simulator, iOS 27.0, light for one real app: 277 processes and 2,845 MB full, 93 processes and 829 MB light. For agents: `run`, `lease`, `shot` and `heal`, each with `--json`, plus an MCP server, an Agent Skill and a macOS menu-bar app. MIT licensed.
+
+Requirements: macOS 15+, an iOS 18.5+ simulator runtime; to compile from source, Swift 6.3+ (Xcode 26.6+).
+
+What light means for an app: with no app known, a simulator gets the general light set (167 of 173 optional services off). An app's needs are added when it is installed or run. A service comes back when an app needs it.
+
+Self-repair: when an app calls a service that is off, such as the photo library or contacts, fast-ios turns it back on within a few seconds, with no restart, and keeps it on for that app. The call that failed is not repeated: do that step again. Proved for photos and contacts on iOS 27.0. Push notifications are not turned back on this way; an app that can receive push keeps them from the start. While fast-ios is on, its background helper does this by itself; otherwise `fast-ios heal` does it.
+
+Install (recommended): `curl -fsSL https://raw.githubusercontent.com/aaryanporwal/fast-ios/main/packaging/install.sh | bash`. It downloads the latest release zip with curl (no quarantine mark, so no Gatekeeper warning), puts fast-ios.app in /Applications or ~/Applications, links the `fast-ios` command into /opt/homebrew/bin, /usr/local/bin or ~/.local/bin, and opens the app. For developers: `brew install aaryanporwal/fast-ios/fast-ios` builds from source. The DMG from GitHub releases is ad-hoc signed and not notarized: macOS shows "“fast-ios” Not Opened" (buttons Move to Trash and Done); the user clicks Done, then Open Anyway in System Settings > Privacy & Security.
+
+## For people
+
+- `fast-ios on`: every simulator becomes light. Stopped ones change at once; a running one after its next start; new simulators are light from their first start. A small background helper does this, and self-repair (above). Nothing is deleted.
+- `fast-ios`: whether fast-ios is on, which simulators are running, the memory saved, and the one next step.
+- `fast-ios off`: every simulator back to full; the background helper is removed.
+- `fast-ios run`: from the project folder, open the app on a light simulator. At a terminal it opens the Simulator window; with `--json` or `--headless` it opens none.
+- If another tool (simslim's watch helper) already turns off simulator services, `fast-ios on` changes nothing and says how to turn that tool off first.
+- Uninstall: `fast-ios uninstall` turns fast-ios off and deletes its files, then lists what only the user can remove (the app, the command link); `--dry-run` changes nothing. Every step by hand: https://github.com/aaryanporwal/fast-ios/blob/main/docs/uninstall.md
+
+## Rules for agents
+
+- Get a simulator from fast-ios; do not create or start your own. Use `fast-ios run` when you run the app (it finds the build, installs and launches). Use `fast-ios lease` when you install and test with your own tools (`xcodebuild test`, `simctl`); it only hands over a light, running simulator.
+- Report to the user with the words light and full. JSON field names keep older words: `"slim": true` means light.
+- Never run `fast-ios on` or `fast-ios off` without a simulator: they change every simulator on the Mac. They are the user's switch.
+- Never run `fast-ios slim` or `fast-ios off <simulator>` on a simulator you did not lease or create in this task. Both restart a running simulator, and another agent or person may be using it.
+- Release what you lease: `fast-ios release <udid>`. A lease also ends when its `--ttl` passes or its owner process exits.
+- If a system feature fails in the simulator (photos, contacts, widgets, iCloud), run `fast-ios profile <app>` to see which services are off. Ask the user before adding `--keep <category>` (a category ID from `fast-ios catalog` such as `widgets`, its full name, or one service label).
+- When memory is short, `run` and `lease` wait and say why, then refuse with exit 2. Do not start a simulator yourself to get around it: tell the user, wait, or release one you hold.
+
+## Agent workflow
+
+```bash
+UDID=$(fast-ios run --app path/to/MyApp.app --grant photos --json | jq -r .udid)   # --json: no Simulator window
+fast-ios shot --app path/to/MyApp.app --udid "$UDID" --url myapp://settings --max-width 400 --json
+fast-ios release "$UDID"
+```
+
+`run` with no `--app` uses the newest simulator build of the project in the current folder and names it on stderr. After a `release`, the next `run` reuses the running light simulator: install and launch only. New pool simulators are cloned from a light template that has already finished its first start (`fast-ios template` lists, builds or removes templates). If a pool simulator hangs while it starts, `run` and `lease` retire it and hand out another.
+
+Measured median time from nothing until `simctl launch` returns (not first frame), from one run of `fast-ios bench --scenario app --repeat 3` on a busy Apple M5 (other work was compiling), iPhone 18 Pro, iOS 27.0, raw output docs/bench/2026-11-15-template.json: full simulator 36.2 s; `fast-ios run` first time, from a template, 12.1 s; next time 2.3 s (changed build 1.8 s). In the same run: simslim (an open-source tool that turns off the same services by hand) 21.3 s, `fast-ios run` first time without a template 26.4 s. The slowest template run (19.8 s) was about as fast as simslim's fastest (19.6 s). Building a template takes 32.6 s, once per device set, runtime and device type. On a quieter run the same day, warm was 1.4 s.
+
+Exit codes for every command: 0 ok, 1 failed (the error says the next step), 2 lease refused for memory or queue (try again later), 64 bad arguments. Run `fast-ios doctor` first on a new Mac.
+
+`lease` refused: exit 2 with JSON `"status": "refused"`, `reason` (`memory` or `queue`), `detail`, `waitedSeconds`, `memory`, `policy`.
+
+## shot
+
+`shot` returns JSON with `screenshot` (a PNG path), `tree` (the accessibility tree as text, one element per line: type, label, identifier, value, flags, frame in points), `treeStatus` (`ok`, `skipped`, `unavailable`, `failed`), `screenStable`, `bundleId`, `screenshotBytes`, `screenshotWidth`, `pixelsPerPoint` (to map tree frames onto the PNG), the simulator and per-step `timings`.
+
+Measured medians of 5 (React Native development build with a spinner, Apple M5, iOS 27.0): first shot with tree 13.2 s (the test runner starts; it stays up for 5 minutes), next shot with tree 7.3 s, shot without tree (`--no-tree`) 6.0 s, without tree and `--max-width 400` 6.3 s with a 47 KB PNG instead of 149 KB. About 5 s of each is waiting for that app's screen to settle. The tree needs the default device set.
+
+## Permissions before launch
+
+`run --grant <permission>` and `shot --grant <permission>` (repeatable) grant with `xcrun simctl privacy grant` before the app starts. On iOS 27.0, granted: calendar, contacts, contacts-limited, reminders, microphone, motion, media-library, photos, photos-add; location and location-always are granted as "when in use"; siri is written but not verified. On iOS 26.5 the full photo library still asks. Not grantable, the app still asks: notifications, camera, speech, tracking (fast-ios refuses these with the reason). Bluetooth needs no grant on the simulator.
+
+## Commands
+
+- `fast-ios on` / `fast-ios off [<simulator>] [--boot]` / `fast-ios`: the switch, described above. `off <simulator>` makes only that simulator full.
+- `fast-ios status`: every simulator, running or not, light or full, memory of running ones (`--verbose`: profile, UDID).
+- `fast-ios run [--app <app|folder>] [--url <url>] [--keep <category|label>]... [--grant <permission>]... [--headless]`: open the app on a light simulator from the pool; print the UDID.
+- `fast-ios shot --app <app|folder> [--udid <simulator>] [--url <deep link>] [--wait <seconds|text>] [--timeout <seconds>] [--out <dir>] [--no-tree] [--max-width <px>] [--scale <0-1>] [--grant <permission>]... [--json]`: install (if changed), launch, open the link, wait, then screenshot and accessibility tree.
+- `fast-ios lease [--app <app|folder>] [--runtime <id|"iOS 27.0">] [--device-type <id|name>] [--ttl 30m] [--owner <id>] [--pid <pid>] [--timeout 5m] [--need-mb 1500] [--reserve-mb 2048] [--max-pressure normal|warning] [--allow-existing] [--json]`: borrow a light, running simulator from the shared pool.
+- `fast-ios release <udid> [--shutdown] [--json]`: end a lease. Without `--shutdown` the simulator stays running for the next lease, up to the pool size.
+- `fast-ios leases [--json]`: who holds what, the pool, the queue, memory.
+- `fast-ios pool [--size N] [--app <app|folder>]`: keep N light simulators running and free, so `run` and `lease` start instantly.
+- `fast-ios template [--build | --remove] [--runtime <id>] [--device-type <id>]`: the light templates new pool simulators are cloned from.
+- `fast-ios heal <simulator> --app <bundle id|.app> [--seconds N] [--cooldown 30] [--max-repairs 10] [--json]`: when the app fails to reach a service fast-ios turned off, turn it on live (no restart) and save it to the app's profile. Retry the failed step after a repair.
+- `fast-ios repairs [--udid <udid>] [--bundle-id <id>] [--json]`: services heal turned on, and why.
+- `fast-ios doctor`: check Xcode, runtimes, memory, disk and a conflicting simslim agent; a fix for each problem.
+- `fast-ios bench`: full vs fast-ios vs simslim on throwaway simulators it creates and deletes.
+- `fast-ios profile <app|folder> [--keep <category|label>]... [--json]`: which services the app needs, and why. Changes nothing.
+- `fast-ios slim <simulator> [--app <app|folder>] [--keep <category|label>]... [--full] [--strict] [--boot]`: make one simulator light for an app; restarts a running simulator.
+- `fast-ios measure <simulator>`: process count and summed `footprint` memory of a running simulator.
+- `fast-ios watch`: make each new simulator light before its first start, in the foreground (`on` does this in the background).
+- `fast-ios catalog`: every service fast-ios may turn off, by category, with what breaks.
+- `fast-ios mcp`: the commands as MCP tools over stdio.
+
+`<simulator>` is a UDID, a unique simulator name, or `booted`. `<app|folder>` is a `.app`, a DerivedData folder, `Build/Products`, or a project folder (the newest simulator `.app` wins). Every command takes `--set <path>` for a custom CoreSimulator device set and `--json`: stdout is one JSON object with `schemaVersion` (now 1); `watch` and `heal` print one object per line. Errors are JSON on stdout with exit code 1 and an `error.code`.
+
+## What heal is proved to fix
+
+On iOS 27.0: photos (`assetsd`) and contacts (`contactsd`) were turned back on 1.1 to 2.5 s after the app's first failed call, and the retry worked. Push (`apsd`) is not healed; an app with the `aps-environment` entitlement keeps `apsd` anyway. Other services are not proved to fail visibly; use `--keep` or `off` for those.
+
+## MCP server and skill
+
+- `fast-ios mcp` tools mirror the commands, each with input and output JSON Schemas.
+- Claude Code: `claude mcp add --scope user fast-ios -- fast-ios mcp`
+- Codex (`~/.codex/config.toml`): `[mcp_servers.fast-ios]` with `command = "fast-ios"` and `args = ["mcp"]`.
+- Agent Skill: `skills/fast-ios/SKILL.md` in the repository. Install for Claude Code: `mkdir -p ~/.claude/skills/fast-ios && curl -fsSL https://raw.githubusercontent.com/aaryanporwal/fast-ios/main/skills/fast-ios/SKILL.md -o ~/.claude/skills/fast-ios/SKILL.md`, then start a new session. Check the MCP server with `claude mcp get fast-ios`.
+
+## Links
+
+- [Source and README](https://github.com/aaryanporwal/fast-ios)
+- [Commands](https://github.com/aaryanporwal/fast-ios/blob/main/docs/commands.md)
+- [For coding agents: run, lease, MCP, skill, shot](https://github.com/aaryanporwal/fast-ios/blob/main/docs/agents.md)
+- [How it works, self-repair, limits](https://github.com/aaryanporwal/fast-ios/blob/main/docs/how-it-works.md)
+- [Benchmarks: method and every run](https://github.com/aaryanporwal/fast-ios/blob/main/docs/benchmarks.md), [raw output](https://github.com/aaryanporwal/fast-ios/tree/main/docs/bench)
+- [JSON output samples](https://github.com/aaryanporwal/fast-ios/blob/main/docs/json-output.md)
+- [simslim](https://github.com/MobAI-App/simslim): the MIT project whose launchd-store approach and service catalog fast-ios follows
