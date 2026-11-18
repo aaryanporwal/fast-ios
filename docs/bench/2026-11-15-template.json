@@ -1,0 +1,137 @@
+{
+  "app": [
+    {
+      "method": "stock + simctl",
+      "samples": [
+        36.18,
+        37.17,
+        34.88
+      ],
+      "seconds": 36.18,
+      "steps": "simctl create; simctl bootstatus -b; simctl install; simctl launch"
+    },
+    {
+      "method": "simslim + simctl",
+      "samples": [
+        24.15,
+        21.34,
+        19.59
+      ],
+      "seconds": 21.34,
+      "steps": "simctl create; simslim on; simctl install; simctl launch"
+    },
+    {
+      "method": "fast-ios run (cold)",
+      "samples": [
+        38.26,
+        26.4,
+        24.38
+      ],
+      "seconds": 26.4,
+      "steps": "fast-ios run --app <app> (empty pool: creates, slims, boots, installs, launches)"
+    },
+    {
+      "method": "fast-ios run (cold, from template)",
+      "samples": [
+        19.75,
+        12.13,
+        9.53
+      ],
+      "seconds": 12.13,
+      "steps": "fast-ios run --app <app> with an empty pool and a ready template: clones it, slims, boots, installs, launches"
+    },
+    {
+      "method": "fast-ios run (warm, same build)",
+      "samples": [
+        4.47,
+        2.12,
+        2.28
+      ],
+      "seconds": 2.28,
+      "steps": "fast-ios run --app <app> after a release: reuses the booted slim simulator; the same bundle is installed again"
+    },
+    {
+      "method": "fast-ios run (warm, changed build)",
+      "samples": [
+        3.45,
+        1.76,
+        1.54
+      ],
+      "seconds": 1.76,
+      "steps": "fast-ios run --app <new build> after a release: reuses the booted slim simulator; installs the changed bundle"
+    },
+    {
+      "method": "fast-ios template build (once per runtime and device type)",
+      "samples": [
+        32.63
+      ],
+      "seconds": 32.63,
+      "steps": "simctl create; full slim overrides; first boot; shutdown"
+    }
+  ],
+  "capabilities": [
+    {
+      "fastIOS": "Derived from the built app in 0.2 s: 18 services kept, 155 off, each kept one with its reason.",
+      "measured": true,
+      "name": "Profile from the built app",
+      "simslim": "No app reading: a hand-written --profile JSON, or --except/--keep flags (simslim 0.14.0 help)."
+    },
+    {
+      "fastIOS": "`fast-ios heal` sees the app fail to reach a service that is off and turns it on with no reboot, then saves it to the app's profile. Not timed by bench: it needs the app to call the service (see README, Self-repair).",
+      "measured": false,
+      "name": "Repair while the app runs",
+      "simslim": "`simslim enable <udid> <ids>` turns services on live, but you must know which ones."
+    }
+  ],
+  "date": "2026-11-15T16:12:31Z",
+  "deviceType": "com.apple.CoreSimulator.SimDeviceType.iPhone-18-Pro",
+  "fastIOSProfile": "~/Library/Developer/Xcode/DerivedData/MyApp-abc/Build/Products/Debug-iphonesimulator/MyApp.app",
+  "host": {
+    "cpu": "Apple M5",
+    "macOS": "27.0.1",
+    "memoryGB": 24,
+    "model": "Mac17,2",
+    "xcode": "Xcode 27.2 Build version 27B52"
+  },
+  "noisy": false,
+  "notes": [
+    "List commands run on the default device set: `fast-ios status --json` and `simslim list` (simslim also scans Xcode's testing set).",
+    "simslim's time is `simslim on`, its one-shot command; `simslim watch` can also slim before the first boot and is not measured here."
+  ],
+  "parallel": [],
+  "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+  "schemaVersion": 1,
+  "settleSeconds": 180,
+  "simslimVersion": "simslim 0.14.0",
+  "startup": [
+    {
+      "command": "fast-ios help",
+      "medianMs": 9.19,
+      "minMs": 8.21,
+      "runs": 10,
+      "tool": "fast-ios"
+    },
+    {
+      "command": "fast-ios status --json",
+      "medianMs": 283.6,
+      "minMs": 196.51,
+      "runs": 10,
+      "tool": "fast-ios"
+    },
+    {
+      "command": "simslim --help",
+      "medianMs": 5.97,
+      "minMs": 4.18,
+      "runs": 10,
+      "tool": "simslim"
+    },
+    {
+      "command": "simslim list",
+      "medianMs": 739.47,
+      "minMs": 651.74,
+      "runs": 10,
+      "tool": "simslim"
+    }
+  ],
+  "variants": []
+}

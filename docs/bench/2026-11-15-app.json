@@ -1,0 +1,118 @@
+{
+  "app": [
+    {
+      "method": "stock + simctl",
+      "samples": [
+        27.25,
+        28.82,
+        31.42
+      ],
+      "seconds": 28.82,
+      "steps": "simctl create; simctl bootstatus -b; simctl install; simctl launch"
+    },
+    {
+      "method": "simslim + simctl",
+      "samples": [
+        17.57,
+        17.29,
+        17.87
+      ],
+      "seconds": 17.57,
+      "steps": "simctl create; simslim on; simctl install; simctl launch"
+    },
+    {
+      "method": "fast-ios run (cold)",
+      "samples": [
+        19.39,
+        18.83,
+        18.5
+      ],
+      "seconds": 18.83,
+      "steps": "fast-ios run --app <app> (empty pool: creates, slims, boots, installs, launches)"
+    },
+    {
+      "method": "fast-ios run (warm, same build)",
+      "samples": [
+        1.49,
+        1.38,
+        1.42
+      ],
+      "seconds": 1.42,
+      "steps": "fast-ios run --app <app> after a release: reuses the booted slim simulator; the same bundle is installed again"
+    },
+    {
+      "method": "fast-ios run (warm, changed build)",
+      "samples": [
+        1.27,
+        1.52,
+        1.53
+      ],
+      "seconds": 1.52,
+      "steps": "fast-ios run --app <new build> after a release: reuses the booted slim simulator; installs the changed bundle"
+    }
+  ],
+  "capabilities": [
+    {
+      "fastIOS": "Derived from the built app in 0.1 s: 18 services kept, 155 off, each kept one with its reason.",
+      "measured": true,
+      "name": "Profile from the built app",
+      "simslim": "No app reading: a hand-written --profile JSON, or --except/--keep flags (simslim 0.14.0 help)."
+    },
+    {
+      "fastIOS": "`fast-ios heal` sees the app fail to reach a service that is off and turns it on with no reboot, then saves it to the app's profile. Not timed by bench: it needs the app to call the service (see README, Self-repair).",
+      "measured": false,
+      "name": "Repair while the app runs",
+      "simslim": "`simslim enable <udid> <ids>` turns services on live, but you must know which ones."
+    }
+  ],
+  "date": "2026-11-15T14:45:38Z",
+  "deviceType": "com.apple.CoreSimulator.SimDeviceType.iPhone-18-Pro",
+  "fastIOSProfile": "~/Library/Developer/Xcode/DerivedData/MyApp-abc/Build/Products/Debug-iphonesimulator/MyApp.app",
+  "host": {
+    "cpu": "Apple M5",
+    "macOS": "27.0.1",
+    "memoryGB": 24,
+    "model": "Mac17,2",
+    "xcode": "Xcode 27.2 Build version 27B52"
+  },
+  "noisy": false,
+  "notes": [
+    "List commands run on the default device set: `fast-ios status --json` and `simslim list` (simslim also scans Xcode's testing set).",
+    "simslim's time is `simslim on`, its one-shot command; `simslim watch` can also slim before the first boot and is not measured here."
+  ],
+  "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+  "schemaVersion": 1,
+  "settleSeconds": 180,
+  "simslimVersion": "simslim 0.14.0",
+  "startup": [
+    {
+      "command": "fast-ios help",
+      "medianMs": 3.47,
+      "minMs": 3.18,
+      "runs": 10,
+      "tool": "fast-ios"
+    },
+    {
+      "command": "fast-ios status --json",
+      "medianMs": 141.78,
+      "minMs": 133.77,
+      "runs": 10,
+      "tool": "fast-ios"
+    },
+    {
+      "command": "simslim --help",
+      "medianMs": 2.75,
+      "minMs": 2.35,
+      "runs": 10,
+      "tool": "simslim"
+    },
+    {
+      "command": "simslim list",
+      "medianMs": 463.3,
+      "minMs": 457.07,
+      "runs": 10,
+      "tool": "simslim"
+    }
+  ],
+  "variants": []
+}

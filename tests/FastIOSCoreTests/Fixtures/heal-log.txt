@@ -1,0 +1,4 @@
+2026-11-15 18:40:12.483 E  Probe[5695:10f90d9] [com.apple.photos:client] Error Domain=NSCocoaErrorDomain Code=4099 "The connection to service named com.apple.photos.service was invalidated"
+2026-11-15 18:40:13.001 Df Probe[5695:10f90d9] [com.apple.contacts:xpc] Service connection to com.apple.contactsd was invalidated from this process.
+2026-11-15 18:40:14.220 E  SpringBoard[80:1a2b] [com.apple.aps:conn] Connection Invalid for service com.apple.apsd
+2026-11-15 18:40:15.000 Df Probe[5695:10f90d9] [com.apple.UIKit:app] Scene did become active

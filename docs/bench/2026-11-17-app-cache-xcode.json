@@ -1,0 +1,34 @@
+{
+  "appBytes" : 10264576,
+  "compileSeconds" : 70.9,
+  "fingerprint" : "0a54fa56d8d0ff0bd9c7cc4c4628fe7d665c31ada2d81b49cdf18eca4e846495",
+  "fingerprintMedian" : 0.49,
+  "fingerprintSeconds" : [
+    0.64,
+    0.49,
+    0.46,
+    0.5,
+    0.33
+  ],
+  "hitMedian" : 0.3,
+  "hitSeconds" : [
+    0.52,
+    0.34,
+    0.29,
+    0.26,
+    0.3
+  ],
+  "inputs" : 71,
+  "kind" : "files",
+  "mac" : "Apple M5",
+  "notes" : [
+    "The compile is whatever the build command does, run once: give it a fresh -derivedDataPath to measure a cold compile.",
+    "A hit is the fingerprint plus the cache lookup. Installing and launching take the same time either way and are not included.",
+    "Medians of 5 runs after one warm-up fingerprint."
+  ],
+  "project" : "sample-xcode",
+  "savedSeconds" : 70.6,
+  "scenario" : "build",
+  "schemaVersion" : 1,
+  "xcode" : "27.2 (27B52)"
+}

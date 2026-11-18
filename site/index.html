@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fast-ios</title>
+<meta name="description" content="Light iOS simulators: fast-ios turns off the simulator services your app does not use. One iPhone simulator: 2,845 MB full, 829 MB light.">
+<meta name="color-scheme" content="light">
+<meta property="og:title" content="fast-ios: light iOS simulators">
+<meta property="og:description" content="A third of the memory, one command. One iPhone 18 Pro simulator: 2,845 MB full, 829 MB light.">
+<meta property="og:image" content="og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="alternate" type="text/plain" href="llms.txt" title="llms.txt">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="64x64" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+/* Two colours: white and the page-mascot tiger's orange (#f07830 fur).
+   Orange fills; --ink-orange is the same hue dark enough for text on white. */
+:root {
+  --bg: #ffffff;
+  --fg: #111111;
+  --muted: #6e6e6e;
+  --line: #ececec;
+  --orange: #f07830;
+  --ink-orange: #b9500c;
+  --tint: #fff4ec;
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Segoe UI", system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  --w: 64rem;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-padding-top: 72px; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.55 var(--sans); -webkit-font-smoothing: antialiased; }
+a { color: inherit; text-underline-offset: 3px; text-decoration-color: var(--orange); }
+a:hover { color: var(--ink-orange); }
+:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; border-radius: 4px; }
+code, pre { font-family: var(--mono); }
+.wrap { max-width: var(--w); margin: 0 auto; padding: 0 20px; }
+.skip { position: absolute; left: -999px; }
+.skip:focus { left: 16px; top: 12px; background: var(--bg); padding: 6px 10px; z-index: 10; }
+
+header.top { position: sticky; top: 0; z-index: 5; background: rgb(255 255 255 / 0.9); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+header.top .wrap { display: flex; align-items: center; justify-content: space-between; height: 60px; }
+.brand { display: flex; align-items: center; gap: 8px; font-weight: 750; letter-spacing: -0.02em; text-decoration: none; font-size: 18px; }
+nav.links { display: flex; gap: 22px; font-size: 15px; font-weight: 550; }
+nav.links a { text-decoration: none; }
+
+/* Hero */
+.hero { text-align: center; padding-top: 40px; padding-bottom: 72px; }
+.mascot-slot { width: 140px; height: 140px; margin: 0 auto 4px; }
+.mascot-slot img { width: 140px; height: 140px; display: block; }
+h1 { font-size: clamp(3rem, 1.6rem + 6.5vw, 6.5rem); line-height: 0.95; letter-spacing: -0.055em; font-weight: 850; margin: 0 0 18px; text-wrap: balance; }
+h1 em { font-style: normal; color: var(--orange); }
+.lede { font-size: clamp(1.15rem, 1rem + 0.6vw, 1.5rem); color: var(--muted); margin: 0 auto 36px; max-width: 30rem; }
+.cmd { display: flex; align-items: center; gap: 10px; max-width: 46rem; margin: 0 auto; padding: 8px 8px 8px 20px; border: 2px solid var(--fg); border-radius: 14px; text-align: left; }
+.cmd pre { margin: 0; flex: 1; overflow-x: auto; white-space: pre; font-size: 14.5px; scrollbar-width: none; }
+.cmd pre::-webkit-scrollbar { display: none; }
+.cmd .p { color: var(--orange); user-select: none; }
+.copy { flex: none; font: 650 14px var(--sans); color: #fff; background: var(--orange); border: 0; border-radius: 9px; padding: 10px 16px; cursor: pointer; min-width: 76px; }
+.copy:hover { background: var(--ink-orange); }
+.alt { margin: 16px 0 0; font-size: 15px; color: var(--muted); }
+
+/* Numbers */
+.stats { display: grid; gap: 0; border-top: 2px solid var(--fg); border-bottom: 2px solid var(--fg); }
+@media (min-width: 760px) { .stats { grid-template-columns: repeat(3, 1fr); } }
+.stat { padding: 28px 0; }
+@media (min-width: 760px) { .stat + .stat { border-left: 1px solid var(--line); padding-left: 28px; } }
+@media (max-width: 759px) { .stat + .stat { border-top: 1px solid var(--line); } }
+.stat .n { font-size: clamp(3rem, 2rem + 3vw, 4.5rem); font-weight: 850; letter-spacing: -0.05em; line-height: 1; font-variant-numeric: tabular-nums; }
+.stat .n small { font-size: 0.42em; letter-spacing: -0.02em; font-weight: 700; margin-left: 4px; }
+.stat .was { display: block; margin-top: 10px; color: var(--muted); font-size: 15px; }
+.stat .was s { text-decoration-color: var(--orange); text-decoration-thickness: 2px; }
+.stat:first-child .n { color: var(--orange); }
+.fine { color: var(--muted); font-size: 13.5px; margin: 14px 0 0; }
+
+section.block { padding: 88px 0 0; }
+h2 { font-size: clamp(2rem, 1.4rem + 2.4vw, 3.25rem); line-height: 1; letter-spacing: -0.045em; font-weight: 850; margin: 0 0 28px; }
+
+/* Demo */
+.demo { margin: 56px 0 0; }
+.demo video { display: block; width: 100%; height: auto; border-radius: 16px; background: #1e1e2e; }
+
+/* Three words */
+.words { display: grid; gap: 14px; }
+@media (min-width: 760px) { .words { grid-template-columns: repeat(3, 1fr); } }
+.word { border: 2px solid var(--fg); border-radius: 16px; padding: 22px 22px 20px; }
+.word code { display: block; font-size: 22px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 8px; }
+.word:first-child { background: var(--orange); border-color: var(--orange); color: #fff; }
+.word:first-child p { color: #fff; }
+.word p { margin: 0; color: var(--muted); font-size: 16px; }
+
+/* Agents */
+.agents { display: grid; gap: 28px; align-items: start; }
+@media (min-width: 900px) { .agents { grid-template-columns: 1fr 1.25fr; gap: 48px; } }
+.agents > * { min-width: 0; }
+.agents p { margin: 0 0 14px; color: var(--muted); }
+.tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.tags span { font: 600 13px var(--mono); padding: 5px 10px; border-radius: 999px; background: var(--tint); color: var(--ink-orange); }
+.code { position: relative; background: var(--fg); color: #f4f4f4; border-radius: 16px; padding: 20px 22px; }
+.code pre { margin: 0; white-space: pre-wrap; overflow-wrap: break-word; font-size: 14px; line-height: 1.75; }
+.code .c { color: #8f8f8f; }
+.code .copy { position: absolute; top: 12px; right: 12px; padding: 7px 12px; min-width: 64px; font-size: 13px; }
+
+/* Install */
+.ways { border-top: 2px solid var(--fg); }
+.way { display: grid; gap: 10px; padding: 22px 0; border-bottom: 1px solid var(--line); }
+@media (min-width: 900px) { .way { grid-template-columns: 13rem 1fr; gap: 28px; align-items: baseline; } }
+.way > * { min-width: 0; }
+.way h3 { margin: 0; font-size: 18px; letter-spacing: -0.01em; }
+.way h3 span { display: block; font-size: 13px; font-weight: 600; color: var(--ink-orange); }
+.way p { margin: 8px 0 0; color: var(--muted); font-size: 15px; }
+.way .cmd { margin: 0; max-width: none; border-width: 1.5px; }
+.btn { display: inline-block; font-weight: 650; font-size: 15px; text-decoration: none; padding: 10px 16px; border: 1.5px solid var(--fg); border-radius: 10px; }
+.btn:hover { border-color: var(--orange); color: var(--ink-orange); }
+
+footer { padding: 88px 0 48px; color: var(--muted); font-size: 14px; text-align: center; }
+footer p { margin: 4px 0; }
+
+@media (max-width: 640px) {
+  .cmd { flex-direction: column; align-items: stretch; padding: 14px; }
+  .cmd pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13.5px; }
+  section.block { padding-top: 64px; }
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#" aria-label="fast-ios home"><img src="favicon-32.png" width="26" height="26" alt="">fast-ios</a>
+    <nav class="links" aria-label="Sections">
+      <a href="#install">Install</a>
+      <a href="https://github.com/aaryanporwal/fast-ios">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+  <div class="wrap hero">
+    <!-- Replaced by the page-mascot Mascot component (src/main.tsx); the image shows until then and without JavaScript. -->
+    <div id="mascot" class="mascot-slot"><img src="tiger.webp" width="140" height="140" alt="fast-ios tiger"></div>
+    <h1>Light iOS <em>simulators.</em></h1>
+    <p class="lede">A third of the memory. One command.</p>
+    <div class="cmd"><pre><span class="p">$ </span><code>curl -fsSL https://raw.githubusercontent.com/aaryanporwal/fast-ios/main/packaging/install.sh | bash</code></pre><button class="copy" type="button">Copy</button></div>
+    <p class="alt">Or <a href="#install">Homebrew, or the app</a>. Free and open source.</p>
+  </div>
+
+  <!-- Numbers from README.md on main (f57e695), "Measured". Change only with a new measurement. -->
+  <div class="wrap">
+    <div class="stats">
+      <div class="stat"><div class="n">829<small>MB</small></div><span class="was">memory, down from <s>2,845 MB</s></span></div>
+      <div class="stat"><div class="n">12.1<small>s</small></div><span class="was">to your app running, from <s>36.2 s</s></span></div>
+      <div class="stat"><div class="n">2.3<small>s</small></div><span class="was">every run after that</span></div>
+    </div>
+    <p class="fine">One iPhone 18 Pro simulator, iOS 27.0, Apple M5, a real Expo app; medians. <a href="https://github.com/aaryanporwal/fast-ios#full-benchmark">Method and every run</a>.</p>
+
+    <div class="demo">
+      <video autoplay muted loop playsinline preload="metadata" poster="demo-poster.webp" width="1680" height="820" aria-label="Terminal recording: fast-ios on, fast-ios run starts the app, fast-ios shows the simulator running light.">
+        <source src="fast-ios-demo.webm" type="video/webm">
+        <source src="fast-ios-demo.mp4" type="video/mp4">
+      </video>
+    </div>
+  </div>
+
+  <section class="block" aria-labelledby="words-h">
+    <div class="wrap">
+      <h2 id="words-h">Three words.</h2>
+      <div class="words">
+        <div class="word"><code>fast-ios on</code><p>Every simulator light, from now on.</p></div>
+        <div class="word"><code>fast-ios</code><p>What is running, what you save.</p></div>
+        <div class="word"><code>fast-ios off</code><p>Back to full. Nothing left behind.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="agents" aria-labelledby="agents-h">
+    <div class="wrap agents">
+      <div>
+        <h2 id="agents-h">Built for agents.</h2>
+        <p>Each agent gets its own light simulator, a screenshot with the screen's layout, and services turned back on when the app needs them.</p>
+        <div class="tags"><span>--json</span><span>MCP server</span><span>Agent Skill</span><span>llms.txt</span></div>
+      </div>
+      <div class="code">
+        <button class="copy" type="button" data-target="loop">Copy</button>
+<pre><code id="loop">UDID=$(fast-ios run --app MyApp.app)
+fast-ios shot --app MyApp.app --udid "$UDID" --json
+fast-ios release "$UDID"</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="install" aria-labelledby="install-h">
+    <div class="wrap">
+      <h2 id="install-h">Install.</h2>
+      <div class="ways">
+        <div class="way">
+          <h3>Terminal <span>Recommended</span></h3>
+          <div>
+            <div class="cmd"><pre><code>curl -fsSL https://raw.githubusercontent.com/aaryanporwal/fast-ios/main/packaging/install.sh | bash</code></pre><button class="copy" type="button">Copy</button></div>
+            <p>Installs the menu-bar app and the command, then opens the app. No password, no security warning. <a href="https://github.com/aaryanporwal/fast-ios/blob/main/packaging/install.sh">Read the script</a>.</p>
+          </div>
+        </div>
+        <div class="way">
+          <h3>Homebrew</h3>
+          <div>
+            <div class="cmd"><pre><code>brew install aaryanporwal/fast-ios/fast-ios</code></pre><button class="copy" type="button">Copy</button></div>
+            <p>Builds from source on your Mac.</p>
+          </div>
+        </div>
+        <div class="way">
+          <h3>Mac app</h3>
+          <div>
+            <a class="btn" href="https://github.com/aaryanporwal/fast-ios/releases/latest">Download the DMG</a>
+            <p>The app is free and not notarized with Apple, so the first time macOS says “fast-ios” Not Opened. Click Done (not Move to Trash), then Open Anyway in System Settings, Privacy &amp; Security.</p>
+          </div>
+        </div>
+      </div>
+      <p class="fine">macOS 15 or newer, Xcode, and an iOS 18.5 or newer simulator.</p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>MIT licensed, by Aaryan Porwal. Follows the launchd approach of <a href="https://github.com/MobAI-App/simslim">simslim</a> (MIT).</p>
+    <p>Tiger from <a href="https://github.com/nilbuild/page-mascot">page-mascot</a> by Kamran Ahmed (MIT, <a href="THIRD_PARTY_NOTICES.txt">notice</a>). <a href="llms.txt">llms.txt</a></p>
+  </div>
+</footer>
+
+<script>
+document.querySelectorAll('.copy').forEach((b) => {
+  b.addEventListener('click', async () => {
+    const text = b.dataset.target
+      ? document.getElementById(b.dataset.target).textContent
+      : b.parentElement.querySelector('code').textContent;
+    try { await navigator.clipboard.writeText(text); b.textContent = 'Copied'; }
+    catch { b.textContent = 'Press ⌘C'; }
+    setTimeout(() => (b.textContent = 'Copy'), 1600);
+  });
+});
+</script>
+<script type="module" src="/src/main.tsx"></script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+{
+  "appBytes" : 203112448,
+  "compileSeconds" : 254,
+  "fingerprint" : "bd9d5d29db8e8ab0c332716722a686e4794bd6157f94a5be59652c2c17d60993",
+  "fingerprintMedian" : 1.36,
+  "fingerprintSeconds" : [
+    2.05,
+    1.37,
+    1.36,
+    0.94,
+    0.92
+  ],
+  "hitMedian" : 0.9,
+  "hitSeconds" : [
+    2.88,
+    1.54,
+    0.84,
+    0.68,
+    0.9
+  ],
+  "inputs" : 31,
+  "kind" : "expo",
+  "mac" : "Apple M5",
+  "notes" : [
+    "The compile is whatever the build command does, run once: give it a fresh -derivedDataPath to measure a cold compile.",
+    "A hit is the fingerprint plus the cache lookup. Installing and launching take the same time either way and are not included.",
+    "Medians of 5 runs after one warm-up fingerprint."
+  ],
+  "project" : "sample-expo",
+  "savedSeconds" : 253.1,
+  "scenario" : "build",
+  "schemaVersion" : 1,
+  "xcode" : "27.2 (27B52)"
+}

@@ -1,0 +1,114 @@
+{
+  "app": [],
+  "capabilities": [
+    {
+      "fastIOS": "Derived from the built app in 0.2 s: 18 services kept, 155 off, each kept one with its reason.",
+      "measured": true,
+      "name": "Profile from the built app",
+      "simslim": "No app reading: a hand-written --profile JSON, or --except/--keep flags (simslim 0.14.0 help)."
+    },
+    {
+      "fastIOS": "`fast-ios heal` sees the app fail to reach a service that is off and turns it on with no reboot, then saves it to the app's profile. Not timed by bench: it needs the app to call the service (see README, Self-repair).",
+      "measured": false,
+      "name": "Repair while the app runs",
+      "simslim": "`simslim enable <udid> <ids>` turns services on live, but you must know which ones."
+    }
+  ],
+  "date": "2026-11-15T16:15:07Z",
+  "deviceType": "com.apple.CoreSimulator.SimDeviceType.iPhone-18-Pro",
+  "fastIOSProfile": "~/Library/Developer/Xcode/DerivedData/MyApp-abc/Build/Products/Debug-iphonesimulator/MyApp.app",
+  "host": {
+    "cpu": "Apple M5",
+    "macOS": "27.0.1",
+    "memoryGB": 24,
+    "model": "Mac17,2",
+    "xcode": "Xcode 27.2 Build version 27B52"
+  },
+  "noisy": false,
+  "notes": [
+    "Parallel agents run with FASTIOS_TEMPLATE=off, so every agent creates its simulator; lease admission queues boots while memory is short.",
+    "List commands run on the default device set: `fast-ios status --json` and `simslim list` (simslim also scans Xcode's testing set).",
+    "simslim's time is `simslim on`, its one-shot command; `simslim watch` can also slim before the first boot and is not measured here."
+  ],
+  "parallel": [
+    {
+      "agentSeconds": [
+        56.83,
+        54.97,
+        55
+      ],
+      "agents": 3,
+      "errors": [],
+      "minAvailableMB": 7956,
+      "replaced": [
+        {
+          "deleted": true,
+          "detail": "did not finish booting within 1 s",
+          "reason": "boot-timeout",
+          "udid": "90CB3C3C-479A-4CDB-B595-F03EC50FF4DB"
+        }
+      ],
+      "retries": 1,
+      "succeeded": 3,
+      "wallSeconds": 56.83,
+      "worstPressure": "normal"
+    },
+    {
+      "agentSeconds": [
+        63.89,
+        59.02,
+        60.82
+      ],
+      "agents": 3,
+      "errors": [],
+      "minAvailableMB": 6888,
+      "replaced": [
+        {
+          "deleted": true,
+          "detail": "did not finish booting within 1 s",
+          "reason": "boot-timeout",
+          "udid": "DD9385CC-2282-43CF-90D9-C8AE710BE14D"
+        }
+      ],
+      "retries": 1,
+      "succeeded": 3,
+      "wallSeconds": 63.89,
+      "worstPressure": "normal"
+    }
+  ],
+  "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+  "schemaVersion": 1,
+  "settleSeconds": 180,
+  "simslimVersion": "simslim 0.14.0",
+  "startup": [
+    {
+      "command": "fast-ios help",
+      "medianMs": 10.37,
+      "minMs": 8.46,
+      "runs": 10,
+      "tool": "fast-ios"
+    },
+    {
+      "command": "fast-ios status --json",
+      "medianMs": 267.9,
+      "minMs": 183.81,
+      "runs": 10,
+      "tool": "fast-ios"
+    },
+    {
+      "command": "simslim --help",
+      "medianMs": 6.56,
+      "minMs": 4.38,
+      "runs": 10,
+      "tool": "simslim"
+    },
+    {
+      "command": "simslim list",
+      "medianMs": 710.6,
+      "minMs": 664.67,
+      "runs": 10,
+      "tool": "simslim"
+    }
+  ],
+  "variants": []
+}

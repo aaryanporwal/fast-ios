@@ -1,0 +1,61 @@
+# Build with warnings as errors, then run the unit tests (Swift Testing), on
+# the runner's default Xcode (26.6, Swift 6.3), the minimum in Package.swift.
+# The macos-26 image (16 Nov 2026) has Xcode 26.0 to 26.6 and nothing newer,
+# so a second job on the "newest" Xcode only repeated this one. Instead, the
+# last step builds and tests again only when the image has an Xcode newer than
+# its default (such as Xcode 27), and otherwise says it has none.
+# macOS minutes are billed at a multiple of Linux minutes, so this runs only
+# on pull requests and by hand, and a newer push cancels the older run.
+# The simulator integration script (scripts/integration.sh) is not run here:
+# it needs a built iOS app and boots a simulator. Run it locally.
+name: CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: build-and-test (Xcode 26.6, Swift 6.3)
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+          echo "Installed:"; ls -d /Applications/Xcode*.app
+
+      - name: Build (warnings are errors)
+        run: swift build -Xswiftc -warnings-as-errors
+
+      # A hung test once held this step for the job's whole 30 minutes; the
+      # suite takes about a minute, so stop it well before that.
+      - name: Unit tests
+        timeout-minutes: 8
+        run: swift test -Xswiftc -warnings-as-errors
+
+      - name: Newer Xcode on the image, if any
+        timeout-minutes: 12
+        run: |
+          default=$(xcodebuild -version | sed -n 's/^Xcode //p')
+          newest=$(ls -d /Applications/Xcode_*.app | sed 's/.*Xcode_\(.*\)\.app/\1/' | sort -V | tail -1)
+          if [ "$(printf '%s\n%s\n' "$default" "$newest" | sort -V | tail -1)" = "$default" ] \
+             || [ "${newest%.0}" = "$default" ]; then
+            echo "The image has no Xcode newer than its default $default (newest installed: $newest)."
+            exit 0
+          fi
+          export DEVELOPER_DIR=/Applications/Xcode_${newest}.app/Contents/Developer
+          echo "Also testing on Xcode $newest:"; xcodebuild -version; swift --version
+          rm -rf .build
+          swift build -Xswiftc -warnings-as-errors
+          swift test -Xswiftc -warnings-as-errors

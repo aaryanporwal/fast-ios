@@ -1,0 +1,138 @@
+{
+  "date" : "2026-11-15T14:33:09Z",
+  "deviceType" : "com.apple.CoreSimulator.SimDeviceType.iPhone-18-Pro",
+  "fastIOSProfile" : "full",
+  "host" : {
+    "cpu" : "Apple M5",
+    "macOS" : "27.0.1",
+    "memoryGB" : 24,
+    "model" : "Mac17,2",
+    "xcode" : "Xcode 27.2 Build version 27B52"
+  },
+  "noisy" : false,
+  "notes" : [
+    "List commands run on the default device set: `fast-ios status --json` and `simslim list` (simslim also scans Xcode's testing set).",
+    "simslim's time is `simslim on`, its one-shot command; `simslim watch` can also slim before the first boot and is not measured here."
+  ],
+  "runtime" : "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+  "schemaVersion" : 1,
+  "settleSeconds" : 180,
+  "simslimVersion" : "simslim 0.14.0",
+  "startup" : [
+    {
+      "command" : "fast-ios help",
+      "medianMs" : 3.96,
+      "minMs" : 3.48,
+      "runs" : 10,
+      "tool" : "fast-ios"
+    },
+    {
+      "command" : "fast-ios status --json",
+      "medianMs" : 142.49,
+      "minMs" : 136.61,
+      "runs" : 10,
+      "tool" : "fast-ios"
+    },
+    {
+      "command" : "simslim --help",
+      "medianMs" : 2.9,
+      "minMs" : 2.5,
+      "runs" : 10,
+      "tool" : "simslim"
+    },
+    {
+      "command" : "simslim list",
+      "medianMs" : 471.59,
+      "minMs" : 454.37,
+      "runs" : 10,
+      "tool" : "simslim"
+    }
+  ],
+  "variants" : [
+    {
+      "coldBootSamples" : [
+        5.17,
+        3.36,
+        3.35
+      ],
+      "coldBootSeconds" : 3.36,
+      "firstReadySamples" : [
+        28.18,
+        16.96,
+        22.57
+      ],
+      "firstReadySeconds" : 22.57,
+      "memoryBytes" : 2991827960,
+      "noisy" : false,
+      "pressureAfter" : "normal",
+      "pressureBefore" : "normal",
+      "processes" : 276,
+      "runs" : 3,
+      "servicesDisabled" : 0,
+      "slimCommand" : null,
+      "slimSamples" : [
+
+      ],
+      "slimSeconds" : null,
+      "variant" : "stock"
+    },
+    {
+      "coldBootSamples" : [
+        2.37,
+        2.35,
+        2.36
+      ],
+      "coldBootSeconds" : 2.36,
+      "firstReadySamples" : [
+        16.77,
+        12.52,
+        13.53
+      ],
+      "firstReadySeconds" : 13.53,
+      "memoryBytes" : 643012440,
+      "noisy" : false,
+      "pressureAfter" : "normal",
+      "pressureBefore" : "normal",
+      "processes" : 74,
+      "runs" : 3,
+      "servicesDisabled" : 173,
+      "slimCommand" : "fast-ios slim A5A1DF30-46C4-4BD3-AA3B-16764C911F07 --set <set> --full",
+      "slimSamples" : [
+        0.13,
+        0.13,
+        0.12
+      ],
+      "slimSeconds" : 0.13,
+      "variant" : "fast-ios"
+    },
+    {
+      "coldBootSamples" : [
+        2.63,
+        2.37,
+        2.36
+      ],
+      "coldBootSeconds" : 2.37,
+      "firstReadySamples" : [
+        16.69,
+        13.3,
+        14.34
+      ],
+      "firstReadySeconds" : 14.34,
+      "memoryBytes" : 634736408,
+      "noisy" : false,
+      "pressureAfter" : "normal",
+      "pressureBefore" : "normal",
+      "processes" : 73,
+      "runs" : 3,
+      "servicesDisabled" : 173,
+      "slimCommand" : "simslim --set <set> on 3FC3D04E-D862-443A-9EA1-015B8E4CA0EB",
+      "slimSamples" : [
+        16.69,
+        13.3,
+        14.34
+      ],
+      "slimSeconds" : 14.34,
+      "variant" : "simslim"
+    }
+  ]
+}
