@@ -1,23 +1,24 @@
 # The README demo, recorded with vhs (github.com/charmbracelet/vhs).
 #   docs/demo/prepare.sh && vhs docs/demo/demo.tape && docs/demo/teardown.sh
+# One idea: a full simulator, `fast-ios on`, the same simulator light.
 # Everything runs the real fast-ios against simulators in /tmp/demo/sims.
-# Hidden parts: the shell set-up below, a 3 s pause while the helper makes
-# the stopped simulator light, and the wait for memory to settle before the
-# last `fast-ios`. Nothing else is cut or sped up.
+# Hidden, and said in the README caption: the shell set-up, the restart of
+# the simulator after `fast-ios on` (quit and start it again, as fast-ios
+# asks), and 200 s while its memory settles. Nothing else is cut or sped up.
 
-Output docs/demo/fast-ios-demo.gif
-Output docs/demo/fast-ios-demo.mp4
-Output docs/demo/fast-ios-demo.webm
+# The raw recording; docs/demo/caption-video.sh adds the captions and makes
+# the GIF, MP4, WebM, poster and subtitles track from it.
+Output docs/demo/raw/demo-raw.mp4
 
 Set Shell "bash"
-Set FontSize 22
-Set Width 1280
-Set Height 820
-Set Padding 24
+Set FontSize 28
+Set Width 1900
+Set Height 860
+Set Padding 36
 Set Theme "Catppuccin Mocha"
-Set TypingSpeed 35ms
+Set TypingSpeed 70ms
 Set WaitPattern /\$\s*$/
-Set WaitTimeout 3m
+Set WaitTimeout 4m
 
 Hide
 Type "export PS1='$ ' PATH=/tmp/demo/bin:$PATH FASTIOS_DEVICE_SET=/tmp/demo/sims FASTIOS_STATE_DIR=/tmp/demo/state FASTIOS_AGENT_LABEL=dev.fast-ios.demo BASH_SILENCE_DEPRECATION_WARNING=1 && cd /tmp/demo && clear"
@@ -25,51 +26,34 @@ Enter
 Wait
 Show
 
-# 1. A full simulator.
+# 1. A full simulator and its memory.
+Sleep 500ms
 Type "fast-ios"
-Enter
-Wait
-Sleep 3s
-
-# 2. Turn fast-ios on, then restart the simulator.
-Type "fast-ios on"
-Enter
-Wait
-Sleep 2s
-Type `xcrun simctl --set sims shutdown "iPhone 18 Pro"`
-Enter
-Wait
-Hide
-Sleep 3s
-Show
-Type `xcrun simctl --set sims boot "iPhone 18 Pro"`
-Enter
-Wait
-Sleep 1s
-Ctrl+L
-
-# 3. The agent path: one command to a running app, cold from the template, then warm.
-Type "UDID=$(fast-ios run --app MyApp.app)"
-Enter
-Wait
-Sleep 2s
-Type "fast-ios release $UDID && fast-ios run --app MyApp.app"
-Enter
-Wait
-Sleep 2s
-Type "fast-ios shot --app MyApp.app --udid $UDID --max-width 400 --out shots"
-Enter
-Wait
-Sleep 3s
-Ctrl+L
-
-# 4. Memory settles (hidden wait), then the result.
-Hide
-Type "sleep 150 && clear"
-Enter
-Wait
-Show
-Type "fast-ios"
+Sleep 300ms
 Enter
 Wait
 Sleep 6s
+Ctrl+L
+
+# 2. Turn fast-ios on.
+Type "fast-ios on"
+Sleep 300ms
+Enter
+Wait
+Sleep 6s
+
+# 3. Off screen: restart the simulator, then let memory settle.
+Hide
+Type `xcrun simctl --set sims shutdown "iPhone 18 Pro" && sleep 5 && xcrun simctl --set sims bootstatus "iPhone 18 Pro" -b >/dev/null && sleep 200 && clear`
+Enter
+Wait
+Show
+Type "# the simulator was quit and started again"
+Sleep 1500ms
+Enter
+Wait
+Type "fast-ios"
+Sleep 300ms
+Enter
+Wait
+Sleep 9s

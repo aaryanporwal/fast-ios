@@ -23,14 +23,23 @@ tests on pull requests; it does not run the integration script.
 
 ## The demo recording
 
-The README's GIF is recorded with [vhs](https://github.com/charmbracelet/vhs)
-from [`demo/demo.tape`](demo/demo.tape), with a sample app built from
-[`demo/MyApp`](demo/MyApp), in a separate set of simulators. From the
-repository root:
+The README's GIF and the site's video are recorded with
+[vhs](https://github.com/charmbracelet/vhs) from
+[`demo/demo.tape`](demo/demo.tape), in a separate set of simulators, with a
+helper label of its own (`dev.fast-ios.demo`). The captions are in
+[`demo/captions.txt`](demo/captions.txt); `caption-video.sh` burns them in,
+makes the GIF, MP4, WebM and poster, and writes the same text as a WebVTT
+track for the site. From the repository root:
 
 ```bash
 docs/demo/prepare.sh && vhs docs/demo/demo.tape && docs/demo/teardown.sh
+docs/demo/caption-video.sh
 ```
+
+Check the caption times in `captions.txt` against the new recording
+before running `caption-video.sh`: they follow the timing of each take.
+[`demo/MyApp`](demo/MyApp) is a sample app for trying `run` and `shot` by
+hand; the recording does not use it.
 
 What the recording shows and why its numbers differ from the tables:
 [benchmarks.md](benchmarks.md#the-demo-recording).

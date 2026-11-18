@@ -18,11 +18,25 @@ Which command to use:
 - **`release`** after either, to give the simulator back. It also goes back
   by itself when the agent exits or `--ttl` passes.
 
+By hand, the loop is three commands:
+
+```bash
+fast-ios run --app MyApp.app               # opens your app on a light simulator and prints its ID
+fast-ios shot --app MyApp.app --udid <ID>  # saves a screenshot and what is on screen
+fast-ios release <ID>                      # gives the simulator back
+```
+
+In a script or an agent, keep the ID in a variable and read JSON:
+
 ```bash
 UDID=$(fast-ios run --app path/to/MyApp.app --json | jq -r .udid)
 fast-ios shot --app path/to/MyApp.app --udid "$UDID" --url myapp://settings --json
 fast-ios release "$UDID"
 ```
+
+Always pass `--udid` to `shot` with the simulator `run` or `lease` gave you.
+Without it, `shot` uses any running light simulator, or starts a stopped
+iPhone simulator, which may be one someone else is using.
 
 Paste this into your project's `AGENTS.md` or `CLAUDE.md`:
 

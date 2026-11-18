@@ -101,6 +101,7 @@ h2 { font-size: clamp(2rem, 1.4rem + 2.4vw, 3.25rem); line-height: 1; letter-spa
 .tags span { font: 600 13px var(--mono); padding: 5px 10px; border-radius: 999px; background: var(--tint); color: var(--ink-orange); }
 .code { position: relative; background: var(--fg); color: #f4f4f4; border-radius: 16px; padding: 20px 22px; }
 .code pre { margin: 0; white-space: pre-wrap; overflow-wrap: break-word; font-size: 14px; line-height: 1.75; }
+.code .note { margin: 12px 0 0; font-size: 14px; color: #c9c9c9; }
 .code .c { color: #8f8f8f; }
 .code .copy { position: absolute; top: 12px; right: 12px; padding: 7px 12px; min-width: 64px; font-size: 13px; }
 
@@ -158,9 +159,10 @@ footer p { margin: 4px 0; }
     <p class="fine">One iPhone 18 Pro simulator, iOS 27.0, Apple M5, a real Expo app; medians. <a href="https://github.com/aaryanporwal/fast-ios/blob/main/docs/benchmarks.md">Method and every run</a>.</p>
 
     <div class="demo">
-      <video autoplay muted loop playsinline preload="metadata" poster="demo-poster.webp" width="1680" height="820" aria-label="Terminal recording: fast-ios on, fast-ios run starts the app, fast-ios shows the simulator running light.">
+      <video autoplay muted loop playsinline preload="metadata" poster="demo-poster.webp" width="1900" height="970" aria-label="Terminal recording: an iPhone simulator running full uses 3,108 MB; fast-ios on; after a restart the same simulator is light and uses 748 MB.">
         <source src="fast-ios-demo.webm" type="video/webm">
         <source src="fast-ios-demo.mp4" type="video/mp4">
+        <track kind="subtitles" src="fast-ios-demo.vtt" srclang="en" label="English">
       </video>
     </div>
   </div>
@@ -185,9 +187,10 @@ footer p { margin: 4px 0; }
       </div>
       <div class="code">
         <button class="copy" type="button" data-target="loop">Copy</button>
-<pre><code id="loop">UDID=$(fast-ios run --app MyApp.app)
-fast-ios shot --app MyApp.app --udid "$UDID" --json
-fast-ios release "$UDID"</code></pre>
+<pre><code id="loop">fast-ios run --app MyApp.app               # opens your app on a light simulator
+fast-ios shot --app MyApp.app --udid &lt;ID&gt;  # saves a screenshot and what is on screen
+fast-ios release &lt;ID&gt;                      # gives the simulator back</code></pre>
+        <p class="note"><code>run</code> prints the simulator's ID; pass it to <code>shot</code> and <code>release</code>.</p>
       </div>
     </div>
   </section>

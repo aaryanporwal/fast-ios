@@ -32,14 +32,17 @@ launches. Every row, the comparison with simslim and what to keep in mind:
 ## The demo recording
 
 A real recording, made with [vhs](https://github.com/charmbracelet/vhs)
-from [`docs/demo/demo.tape`](demo/demo.tape) on the same Mac, with a
-sample app built from [`docs/demo/MyApp`](demo/MyApp). It is a
-different run from the tables, so its numbers differ: the full simulator
-used 3,017 MB here. The "about 4.2 GB" on the last screen counts two
-running light simulators: the one shown and the one `fast-ios run` started.
-Two idle waits are cut: 3 s while the stopped simulator is made light, and
-150 s while memory settles. Reproduce it with `docs/demo/prepare.sh && vhs
-docs/demo/demo.tape && docs/demo/teardown.sh`.
+from [`docs/demo/demo.tape`](demo/demo.tape) on the same Mac (Apple M5,
+24 GB, Xcode 27.2), in a separate set of simulators with a helper label of
+its own. It shows one iPhone 18 Pro simulator on iOS 27.0: running full
+it used 3,108 MB; after `fast-ios on` and a restart, the same simulator
+running light used 748 MB. It is a different run from the tables, so its
+numbers differ a little. Cut from it: the shell set-up, the restart of
+the simulator (quit and started again, as fast-ios asks), and 200 s while
+its memory settled. Nothing else is cut or sped up. The captions are
+burned in from [`docs/demo/captions.txt`](demo/captions.txt); the site's
+video also carries them as a subtitles track. How to record it again:
+[development.md](development.md#the-demo-recording).
 
 ## Every run
 

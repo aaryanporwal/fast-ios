@@ -103,7 +103,7 @@ enum Home {
             for line in pool { print("  " + Style.dim(line)) }
         }
         if verbose {
-            print(Style.dim("Helper: \(status.agentLabel) (\(status.plistPath)), \(status.agentLoaded ? "loaded" : "not loaded"), log \(config.logFile.path)"))
+            print(Style.dim("Helper: \(status.agentLabel) (\(tilde(status.plistPath))), \(status.agentLoaded ? "loaded" : "not loaded"), log \(tilde(config.logFile.path))"))
             if let set = Simctl.deviceSet { print(Style.dim("Device set: \(set)")) }
         }
         if !others.isEmpty {
@@ -144,6 +144,13 @@ var howLightWorks: String {
     return "Until fast-ios knows your app, a simulator gets the general light set (\(general.disable.count) of \(ServiceCatalog.slimmable.count) services off); `fast-ios run` adds what your app needs, and a service comes back on by itself when an app needs it."
 }
 
+/// A path with the home folder shown as `~`, so output that people paste or
+/// record never carries their user name.
+func tilde(_ path: String) -> String {
+    let home = FileManager.default.homeDirectoryForCurrentUser.path
+    return path == home || path.hasPrefix(home + "/") ? "~" + path.dropFirst(home.count) : path
+}
+
 /// The helper's latest action, from its log, so a person can see it works.
 enum HelperLog {
     static func lastAction(_ log: URL, devices: [SimDevice]) -> String? {
@@ -156,7 +163,7 @@ enum HelperLog {
             let udid = String(parts[1].dropLast())
             guard parts[1].hasSuffix(":"), let name = names[udid] else { continue }
             let when = date.formatted(date: Calendar.current.isDateInToday(date) ? .omitted : .abbreviated, time: .shortened)
-            return "Last helper action, \(when): \(name): \(parts[2]) (from \(log.path))."
+            return "Last helper action, \(when): \(name): \(parts[2]) (from \(tilde(log.path)))."
         }
         return nil
     }
@@ -202,7 +209,7 @@ func runOnCommand(verbose: Bool) async throws {
         print("\(r.runningLeftAlone.count) running simulator\(r.runningLeftAlone.count == 1 ? "" : "s") (\(names)) become\(r.runningLeftAlone.count == 1 ? "s" : "") light the next time \(r.runningLeftAlone.count == 1 ? "it starts" : "they start").")
     }
     if verbose {
-        print("Helper \(r.agentLabel) installed at \(config.plistURL.path); log \(config.logFile.path).")
+        print("Helper \(r.agentLabel) installed at \(tilde(config.plistURL.path)); log \(tilde(config.logFile.path)).")
     }
 }
 
@@ -221,7 +228,7 @@ func runOffAllCommand(verbose: Bool) async throws {
         if later > 0 { parts.append("\(later) running simulator\(later == 1 ? " becomes" : "s become") full at \(later == 1 ? "its" : "their") next start") }
         let joined = parts.count > 1 ? parts.dropLast().joined(separator: ", ") + " and " + parts.last! : parts[0]
         print("fast-ios is \(Style.caution("off")): \(joined).")
-        if r.agentRemoved { print("Removed: the background helper \(config.label) (\(config.plistURL.path)).") }
+        if r.agentRemoved { print("Removed: the background helper \(config.label) (\(tilde(config.plistURL.path))).") }
         if !r.madeFull.isEmpty { print("Made full: \(r.madeFull.joined(separator: ", ")).") }
     }
     try await printLeftovers(config, stillLight: r.runningFullAfterRestart)

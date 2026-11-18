@@ -1,0 +1,4 @@
+0.0|9.0|This iPhone simulator is running full and uses about 3 GB
+9.0|16.8|One command makes every simulator light
+16.8|23.6|The simulator was quit and started again
+23.6|32.4|The same simulator is light now: 748 MB instead of 3,108 MB

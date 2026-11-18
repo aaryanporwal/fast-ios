@@ -7,7 +7,9 @@
 [![CI](https://github.com/aaryanporwal/fast-ios/actions/workflows/ci.yml/badge.svg)](https://github.com/aaryanporwal/fast-ios/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/github/license/aaryanporwal/fast-ios)](LICENSE)
 
-<img src="docs/demo/fast-ios-demo.gif" width="880" alt="Terminal: fast-ios shows an iPhone 18 Pro simulator running full at 3,017 MB; fast-ios on; the simulator restarts; fast-ios run starts MyApp in 24.6 s, then again in 1.1 s; fast-ios shot saves a screenshot; fast-ios shows the simulator running light at 661 MB.">
+<img src="docs/demo/fast-ios-demo.gif" width="880" alt="Terminal: an iPhone 18 Pro simulator running full uses 3,108 MB; fast-ios on; after a restart the same simulator is light and uses 748 MB.">
+
+<sub>A real recording on an Apple M5 Mac; the restart and 200 s of waiting for memory to settle are cut. [How it is made](docs/benchmarks.md#the-demo-recording).</sub>
 
 An iPhone simulator starts close to 280 background processes and uses
 almost 3 GB of memory, mostly for things your app never touches: widgets,
@@ -60,10 +62,14 @@ memory is short, and takes it back when the agent is done. Every command
 takes `--json`.
 
 ```bash
-UDID=$(fast-ios run --app path/to/MyApp.app --json | jq -r .udid)
-fast-ios shot --app path/to/MyApp.app --udid "$UDID" --json   # screenshot and screen tree
-fast-ios release "$UDID"
+fast-ios run --app MyApp.app               # opens your app on a light simulator
+fast-ios shot --app MyApp.app --udid <ID>  # saves a screenshot and what is on screen
+fast-ios release <ID>                      # gives the simulator back
 ```
+
+`run` prints the simulator's ID; pass it to `shot` and `release`. The form
+for scripts, which keeps the ID in a variable, is in
+[docs/agents.md](docs/agents.md).
 
 Use `run` when the agent runs your app, and `lease` when it tests with its
 own tools. fast-ios also has an MCP server (`fast-ios mcp`) and a skill:
