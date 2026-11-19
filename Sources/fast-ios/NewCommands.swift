@@ -9,7 +9,7 @@ enum ExitCode {
     static let ok: Int32 = 0
     /// The command ran and failed (a simulator, app or tool error).
     static let failure: Int32 = 1
-    /// A lease was refused (memory or queue) after waiting: try again later.
+    /// No simulator was started: memory is short, or others' starts ran past the wait.
     static let refused: Int32 = 2
     /// Bad arguments: unknown option, missing value or argument (EX_USAGE).
     static let usage: Int32 = 64
@@ -208,11 +208,10 @@ func runRunCommand(_ words: [String]) async throws {
         guard ["normal", "warning"].contains(p) else { throw UsageError("--max-pressure takes normal or warning; got \(p).") }
         r.policy = AdmissionPolicy(maxPressure: p)
     }
-    if let t = f.value("--timeout") {
-        guard let v = FastIOSCommands.parseDuration(t) else { throw UsageError("--timeout needs a duration such as 90s, 5m or 1h; got \(t).") }
-        r.timeout = v
-    } else {
-        r.timeout = LeaseManager.defaultWait(forPerson: isPerson)
+    // --timeout is the old name of --wait-for-memory.
+    if let t = f.value("--wait-for-memory") ?? f.value("--timeout") {
+        guard let v = FastIOSCommands.parseDuration(t), v >= 0 else { throw UsageError("--wait-for-memory needs a duration such as 90s, 5m or 1h; got \(t).") }
+        r.memoryWait = v
     }
     r.keep = try KeepNames.validate(words.indices.filter { words[$0] == "--keep" && $0 + 1 < words.count }.map { words[$0 + 1] })
     r.app = f.value("--app")

@@ -45,7 +45,7 @@ USAGE
 <simulator> is a UDID, a unique simulator name, or "booted".
 Every command takes --set <path> for a custom CoreSimulator device set,
 --json for machine-readable output (errors too), and --help.
-Exit codes: 0 ok, 1 failed, 2 lease refused (try later), 64 bad arguments.
+Exit codes: 0 ok, 1 failed, 2 no simulator started (memory short or queue), 64 bad arguments.
 """
 
 /// `--json` anywhere on the command line: JSON output, JSON errors.
@@ -241,7 +241,9 @@ func run() async throws {
     }
     // Every command registered as an MCP tool prints that tool's JSON.
     if jsonMode, let tool = MCPTools.named(command) {
-        let result = try await tool.callFromCLI(Array(raw.dropFirst()))
+        // run and lease say on stderr while they wait for memory.
+        let waitLog: Log? = ["run", "lease"].contains(command) ? stderrLog : nil
+        let result = try await LeaseManager.$waitLog.withValue(waitLog) { try await tool.callFromCLI(Array(raw.dropFirst())) }
         print(try JSONOutput.encode(result, pretty: true))
         // A refused lease is an answer, not an error, but scripts need to tell.
         if result["status"]?.string == "refused" { exit(ExitCode.refused) }

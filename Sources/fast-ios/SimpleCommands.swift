@@ -2,7 +2,7 @@ import FastIOSCore
 import Foundation
 
 enum FastIOSVersion {
-    static let current = "0.4.0"
+    static let current = "0.4.1"
 }
 
 /// Shown once, the first time any command runs.

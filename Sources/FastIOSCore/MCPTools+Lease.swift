@@ -24,6 +24,8 @@ public struct LeaseToolOutput: Encodable, Sendable {
     public var cloned = false
     /// Simulators that failed to boot or answer and were retired first.
     public var replaced: [Replacement] = []
+    /// Refusals: the outcome and why, in one sentence.
+    @EncodeNull public var message: String?
     /// Refusals: "memory" or "queue".
     @EncodeNull public var reason: String?
     @EncodeNull public var detail: String?
@@ -33,6 +35,9 @@ public struct LeaseToolOutput: Encodable, Sendable {
     /// Refusals: what uses the memory, and what to do next (exact commands).
     @EncodeNull public var usage: [String]?
     @EncodeNull public var nextStep: String?
+    /// Memory refusals: the running simulators and the largest apps.
+    @EncodeNull public var simulators: [RunningSimulator]?
+    @EncodeNull public var largestApps: [AppMemory]?
 
     init(_ r: LeaseResult) {
         status = r.status; udid = r.udid; name = r.name; deviceSet = r.deviceSet; runtime = r.runtime
@@ -47,6 +52,8 @@ public struct LeaseToolOutput: Encodable, Sendable {
         queuePosition = r.queuePosition; memory = r.memory; policy = r.policy
         deviceSet = Simctl.deviceSet
         usage = r.usage; nextStep = r.nextStep
+        message = r.headline
+        if r.reason == "memory" { simulators = r.simulators; largestApps = r.largestApps }
     }
 }
 
@@ -112,10 +119,7 @@ extension FastIOSCommands {
             guard let t = parseDuration(s) else { throw InvalidArguments("ttl must look like 90s, 30m or 2h.") }
             req.ttl = t
         }
-        if let s = a.optionalString("timeout") {
-            guard let t = parseDuration(s) else { throw InvalidArguments("timeout must look like 90s, 30m or 2h.") }
-            req.timeout = t
-        }
+        if let v = try memoryWait(a) { req.memoryWait = v }
         req.owner = a.optionalString("owner")
         req.ownerPid = a.int("pid").map { Int32($0) }
         req.policy = AdmissionPolicy(needMB: a.int("needMb"), reserveMB: a.int("reserveMb"), maxPressure: a.optionalString("maxPressure"))
@@ -154,6 +158,13 @@ extension FastIOSCommands {
             released: l.released, memory: l.memory, shutDown: l.shutDown, poolStatus: l.poolStatus)
     }
 
+    /// `waitForMemory`, or its old name `timeout`: nil when neither is given.
+    public static func memoryWait(_ a: ToolArguments) throws -> TimeInterval? {
+        guard let s = a.optionalString("waitForMemory") ?? a.optionalString("timeout") else { return nil }
+        guard let t = parseDuration(s), t >= 0 else { throw InvalidArguments("waitForMemory must look like 90s, 5m or 1h; got \(s).") }
+        return t
+    }
+
     /// "90s", "30m", "2h", or a bare number of minutes.
     public static func parseDuration(_ s: String) -> TimeInterval? {
         let units: [Character: Double] = ["s": 1, "m": 60, "h": 3600]
@@ -179,12 +190,19 @@ extension MCPTools {
     static let policySchema = Schema.object([
         "needMB": Schema.integer(), "reserveMB": Schema.integer(), "maxPressure": Schema.string(),
     ], required: ["needMB", "reserveMB", "maxPressure"])
+    static let runningSimulatorSchema = Schema.object([
+        "udid": Schema.string(), "name": Schema.string(), "memoryMB": Schema.integer(),
+        "leasedBy": Schema.nullable("string", "Lease owner when an agent holds it."),
+        "fromPool": Schema.boolean("fast-ios created it for run and lease."),
+        "appsRunning": Schema.array(Schema.string(), "Non-Apple apps running on it (not necessarily in front)."),
+    ], required: ["udid", "name", "memoryMB", "fromPool", "appsRunning"])
+    static let appMemorySchema = Schema.object(["name": Schema.string(), "memoryMB": Schema.integer()], required: ["name", "memoryMB"])
     static let nullableMemory: JSONValue = ["type": ["object", "null"], "properties": memorySchema["properties"] ?? [:]]
     static let nullablePolicy: JSONValue = ["type": ["object", "null"], "properties": policySchema["properties"] ?? [:]]
 
     static let lease = MCPTool(
         name: "lease", title: "Lease a light simulator",
-        description: "Get a light, running simulator for this agent instead of booting your own. Reuses a free booted pool simulator (seconds), boots a shut-down one, or creates one (about 1 to 2 min). The lease ends at release, after ttl, or when the owner process exits (pid, else the caller). While the Mac is short on memory a new boot waits in a first-come queue; after timeout the result has status \"refused\" with reason and detail. Only simulators fast-ios created are leased.",
+        description: "Get a light, running simulator for this agent instead of booting your own. Reuses a free booted pool simulator (seconds), boots a shut-down one, or creates one (about 1 to 2 min). The lease ends at release, after ttl, or when the owner process exits (pid, else the caller). When the Mac itself is short of memory the result comes at once with status \"refused\", reason \"memory\", what uses the memory (simulators, largestApps) and nextStep; pass waitForMemory to wait instead. Behind other agents' simulators that are still starting it waits up to 5m in a first-come queue (reason \"queue\" if that runs out). Only simulators fast-ios created are leased.",
         inputSchema: Schema.object([
             "app": Schema.string("Built app or folder: the simulator is made light for it."),
             "keep": keepArg,
@@ -194,7 +212,8 @@ extension MCPTools {
             "ttl": Schema.string("Lease length: 90s, 30m (default), 2h."),
             "owner": Schema.string("Free-text owner id shown by leases."),
             "pid": Schema.integer("Process whose exit ends the lease."),
-            "timeout": Schema.string("How long to wait in the queue: default 5m."),
+            "waitForMemory": Schema.string("How long to wait for memory when the Mac is short of it, such as \"5m\". Default 0: answer at once with the reason and the choices."),
+            "timeout": Schema.string("Old name for waitForMemory."),
             "needMb": Schema.integer("Memory one more simulator needs (default 1500)."),
             "reserveMb": Schema.integer("Memory that must stay free (default 2048)."),
             "maxPressure": Schema.string("Highest kernel pressure that admits a boot: normal (default) or warning."),
@@ -210,10 +229,15 @@ extension MCPTools {
             "waitedSeconds": number, "prepareSeconds": Schema.nullable("number"),
             "cloned": Schema.boolean("Copied from a light template (skips first-start setup)."),
             "replaced": replacedSchema,
+            "message": Schema.nullable("string", "Refused: the outcome and why, in one sentence."),
             "reason": Schema.nullable("string", "memory or queue"), "detail": Schema.nullable("string"),
             "queuePosition": Schema.nullable("integer"), "memory": nullableMemory, "policy": nullablePolicy,
             "usage": ["type": ["array", "null"], "items": Schema.string(), "description": "Refused: what uses the memory, in plain words."],
             "nextStep": Schema.nullable("string", "Refused: what to do now, with the exact flag or command."),
+            "simulators": ["type": ["array", "null"], "items": runningSimulatorSchema,
+                           "description": "Refused for memory: the running simulators of this device set, largest first."],
+            "largestApps": ["type": ["array", "null"], "items": appMemorySchema,
+                            "description": "Refused for memory: the largest apps outside the simulators."],
         ], required: ["schemaVersion", "status", "udid", "waitedSeconds"]),
         annotations: ["readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false]
     ) { args in try await FastIOSCommands.lease(args) }

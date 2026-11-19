@@ -107,7 +107,7 @@ public enum Doctor {
         let detail = ([summary, "A new simulator cannot start right now: " + lowerFirst(advice.why)] + advice.usage).joined(separator: " ")
         // Critical pressure is a failure; anything else only blocks new simulators.
         return DoctorCheck(id: "memory", status: m.pressure == "critical" ? "fail" : "warn", summary: detail,
-                           fix: advice.nextStep + " `fast-ios run` and `fast-ios lease` wait \(LeaseManager.duration(LeaseManager.defaultWait(forPerson: true))) for memory, then stop.")
+                           fix: advice.nextStep + " `fast-ios run` and `fast-ios lease` stop at once until then; `--wait-for-memory 5m` makes them wait.")
     }
 
     static func switchCheck(_ config: AutoModeConfig) async -> DoctorCheck {

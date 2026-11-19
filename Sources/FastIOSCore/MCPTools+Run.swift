@@ -3,7 +3,7 @@ import Foundation
 extension MCPTools {
     static let run = MCPTool(
         name: "run", title: "Run an app on a light simulator",
-        description: "The one call to try an app: lease a simulator from the fast-ios pool (reuses a free booted one, else boots or creates one), make it light for the app, install, launch, and return the UDID. Without app, finds the newest simulator build for the project in folder (Xcode DerivedData, ios/build, build/). For a project folder, the app cache reuses a stored build when the project's fingerprint matches (Expo: native inputs only, so JavaScript changes still hit); with build, a miss runs that command once, stores the app, and other agents missing on the same fingerprint wait for it (see appCache in the result and the apps tool). The lease ends after ttl or when your process exits; end it early with release.",
+        description: "The one call to try an app: lease a simulator from the fast-ios pool (reuses a free booted one, else boots or creates one), make it light for the app, install, launch, and return the UDID. When the Mac is short of memory it answers at once with error code memory_pressure, what uses the memory and the choices (reuse a running simulator with simulator, start anyway with maxPressure warning, or shut one down); pass waitForMemory to wait instead. Without app, finds the newest simulator build for the project in folder (Xcode DerivedData, ios/build, build/). For a project folder, the app cache reuses a stored build when the project's fingerprint matches (Expo: native inputs only, so JavaScript changes still hit); with build, a miss runs that command once, stores the app, and other agents missing on the same fingerprint wait for it (see appCache in the result and the apps tool). The lease ends after ttl or when your process exits; end it early with release.",
         inputSchema: Schema.object([
             "app": Schema.string("Built .app, or a folder that contains a simulator build. Omit to find the build automatically."),
             "folder": Schema.string("Project folder to search when app is omitted. Default: the current folder."),
@@ -16,7 +16,8 @@ extension MCPTools {
             "simulator": Schema.string("Use this simulator instead of leasing one. Only one you created."),
             "noLaunch": Schema.boolean("Install only; do not launch."),
             "maxPressure": Schema.string("Highest memory pressure at which a new boot may start: normal (default) or warning."),
-            "timeout": Schema.string("How long to wait for memory before giving up, such as \"5m\". Default 5m."),
+            "waitForMemory": Schema.string("How long to wait for memory when the Mac is short of it, such as \"5m\". Default 0: answer at once with the reason and the choices."),
+            "timeout": Schema.string("Old name for waitForMemory."),
             "deviceSet": deviceSetArg,
         ].merging(cacheArgs) { a, _ in a }),
         outputSchema: Schema.object([
@@ -54,10 +55,7 @@ extension MCPTools {
             guard ["normal", "warning"].contains(p) else { throw InvalidArguments("maxPressure must be normal or warning; got \(p).") }
             r.policy = AdmissionPolicy(maxPressure: p)
         }
-        if let t = args.optionalString("timeout") {
-            guard let v = FastIOSCommands.parseDuration(t) else { throw InvalidArguments("timeout must look like 90s, 5m or 1h; got \(t).") }
-            r.timeout = v
-        }
+        if let v = try FastIOSCommands.memoryWait(args) { r.memoryWait = v }
         r.grant = try Privacy.validate(args.strings("grant"))
         r.cache = try cacheRequest(args)
         return try await AppRunner.run(r)

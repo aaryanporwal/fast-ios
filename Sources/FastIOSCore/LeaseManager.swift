@@ -10,8 +10,14 @@ public struct LeaseRequest: Sendable {
     public var owner: String?
     /// Pid whose exit ends the lease. nil: the caller (first non-shell ancestor).
     public var ownerPid: Int32?
-    /// How long to wait in the queue before giving up.
-    public var timeout: TimeInterval = 300
+    /// How long to wait while the Mac itself is short of memory (pressure
+    /// above `policy.maxPressure`, or too little free). 0, the default:
+    /// refuse at once and say what to do (`--wait-for-memory`).
+    public var memoryWait: TimeInterval = 0
+    /// How long to wait behind other requests and simulators already
+    /// starting, when memory alone would allow the boot. At least
+    /// `memoryWait`.
+    public var queueWait: TimeInterval = LeaseManager.defaultQueueWait
     public var policy = AdmissionPolicy()
     /// Also lease shut-down simulators fast-ios did not create.
     public var allowExisting = false
@@ -53,19 +59,25 @@ public struct LeaseRefusal: Error, Codable, Sendable, LocalizedError {
     public var usage: [String] = []
     /// What to do now, with the exact command or flag.
     public var nextStep: String = ""
+    /// Memory refusals: the running simulators and the largest apps.
+    public var simulators: [RunningSimulator] = []
+    public var largestApps: [AppMemory] = []
     public var errorDescription: String? {
-        let lines = ["No simulator was started: after waiting \(Int(waitedSeconds)) s, \(sentence)"] + usage
-            + (nextStep.isEmpty ? [] : ["Next: \(nextStep)"])
+        let lines = [headline] + usage + (nextStep.isEmpty ? [] : ["Next: \(nextStep)"])
         return lines.joined(separator: "\n")
     }
 
-    /// The reason as the end of a sentence.
+    /// "No simulator was started: <why>", with the wait when there was one.
+    public var headline: String {
+        let s = sentence
+        if waitedSeconds < 1 { return "No simulator was started: " + s }
+        return "No simulator was started: after waiting \(Int(waitedSeconds)) s, " + s.prefix(1).lowercased() + s.dropFirst()
+    }
+
+    /// The reason as a sentence.
     var sentence: String {
-        guard reason == "memory" else {
-            return "\(queuePosition ?? 0) other request(s) were still ahead in the queue for a new simulator."
-        }
-        let s = MemoryAdvice.sentence(memory, policy: policy, pendingBoots: 0)
-        return s.prefix(1).lowercased() + s.dropFirst()
+        guard reason == "memory" else { return detail.prefix(1).uppercased() + detail.dropFirst() + "." }
+        return MemoryAdvice.sentence(memory, policy: policy, pendingBoots: 0)
     }
 }
 
@@ -118,9 +130,16 @@ public enum LeaseManager {
         return r
     }
 
-    /// How long `run` and `lease` wait for memory by default. A person at a
-    /// terminal waits 30 s; scripts and agents (`--json`, no terminal) 5 min.
-    public static func defaultWait(forPerson: Bool) -> TimeInterval { forPerson ? 30 : 300 }
+    /// How long a request waits behind others whose simulators are starting.
+    /// Waiting for the Mac itself to free memory is `LeaseRequest.memoryWait`.
+    public static let defaultQueueWait: TimeInterval = 300
+
+    /// Also gets the waiting lines. `--json` sets it to stderr, so an agent
+    /// sees a wait while stdout stays one JSON document.
+    @TaskLocal public static var waitLog: Log?
+
+    /// How often a waiting request says it is still waiting.
+    static let progressEvery: TimeInterval = 30
 
     /// "30 s", "5 min", "1 min 30 s".
     public static func duration(_ t: TimeInterval) -> String {
@@ -169,6 +188,8 @@ public enum LeaseManager {
 
         var lastWait = ""
         var lastProgress = Date.distantPast
+        let echo = Self.waitLog
+        func say(_ line: String) { log(line); echo?(line) }
         while true {
             let devices = try await Simctl.listDevices()
             let memory = MemoryStatus.read()
@@ -199,20 +220,18 @@ public enum LeaseManager {
                     _ = claim(d.udid)
                     return .use(d.udid, .reusedBooted)
                 }
-                guard position == 0 else {
-                    return .wait(reason: "queue", detail: "\(position) request(s) ahead in the queue", position: position)
+                // Free memory held by an idle simulator of another kind.
+                let idle = state.pool.values.first {
+                    $0.deviceSet == set && !$0.draining && state.leases[$0.udid] == nil && byUDID[$0.udid]?.isBooted == true
                 }
                 let pending = state.leases.values.filter { $0.status == .preparing }.count
-                guard req.policy.admits(memory, pendingBoots: pending) else {
-                    // Free memory held by an idle simulator of another kind.
-                    let idle = state.pool.values.first {
-                        $0.deviceSet == set && !$0.draining && state.leases[$0.udid] == nil && byUDID[$0.udid]?.isBooted == true
-                    }
-                    if let idle {
-                        state.pool[idle.udid]?.draining = true
-                        return .reclaim(idle.udid)
-                    }
-                    return .wait(reason: "memory", detail: req.policy.reason(memory, pendingBoots: pending), position: position)
+                switch admission(position: position, pending: pending, memory: memory, policy: req.policy, idle: idle?.udid) {
+                case .go: break
+                case .reclaim(let udid):
+                    state.pool[udid]?.draining = true
+                    return .reclaim(udid)
+                case .wait(let reason, let detail):
+                    return .wait(reason: reason, detail: detail, position: position)
                 }
                 if let d = free.first(where: { byUDID[$0.udid]?.state == "Shutdown" }) {
                     _ = claim(d.udid)
@@ -235,27 +254,24 @@ public enum LeaseManager {
             switch decision {
             case .wait(let reason, let detail, let position):
                 let waited = Date().timeIntervalSince(started)
-                if waited >= req.timeout {
-                    var refusal = LeaseRefusal(status: "refused", reason: reason, detail: detail, waitedSeconds: waited.rounded(),
-                                               queuePosition: position, memory: memory, policy: req.policy)
-                    if reason == "memory" {
-                        let advice = await MemoryAdvice.current(policy: req.policy, memory: memory)
-                        refusal.usage = advice.usage
-                        refusal.nextStep = advice.nextStep
-                    } else {
-                        refusal.nextStep = "Try again in a minute, or pass a longer wait with `--timeout 5m`. `fast-ios leases` shows the queue."
-                    }
-                    throw refusal
+                // Waiting only helps when asked for (memory) or when others'
+                // simulators are about to finish starting (queue).
+                let wait = Self.waitLimit(reason: reason, req)
+                if waited >= wait {
+                    throw await refusal(reason: reason, detail: detail, waited: waited, position: position,
+                                        memory: memory, req: req)
                 }
-                // Say why and for how long, at once and then every 10 s, so a
-                // person at a terminal never stares at one silent line.
-                let limit = Self.duration(req.timeout)
+                // Say why and for how long at once, then about every 30 s, so
+                // an agent or a person never stares at one silent line.
+                let limit = Self.duration(wait)
                 if detail != lastWait {
-                    let why = reason == "memory" ? MemoryAdvice.sentence(memory, policy: req.policy, pendingBoots: 0) : "\(detail)."
-                    log("Waiting for memory to start a new simulator. \(why) Gives up after \(limit); change that with --timeout.")
+                    let why = reason == "memory"
+                        ? "Waiting for memory to start a new simulator. " + MemoryAdvice.sentence(memory, policy: req.policy, pendingBoots: 0)
+                        : "Waiting to start a new simulator: \(detail)."
+                    say("\(why) Gives up after \(limit)\(reason == "memory" ? "; change that with --wait-for-memory" : "").")
                     lastWait = detail; lastProgress = Date()
-                } else if Date().timeIntervalSince(lastProgress) >= 10 {
-                    log("Still waiting: \(Int(waited)) s of \(limit). \(reason == "memory" ? "Memory pressure \(memory.pressure), \(memory.availableMB) MB free." : detail + ".")")
+                } else if Date().timeIntervalSince(lastProgress) >= Self.progressEvery {
+                    say("Still waiting: \(Int(waited)) s of \(limit). Memory pressure \(memory.pressure), \(memory.availableMB) MB free\(reason == "memory" ? "" : "; " + detail).")
                     lastProgress = Date()
                 }
                 try await Task.sleep(for: .seconds(1))
@@ -291,6 +307,59 @@ public enum LeaseManager {
                 return result
             }
         }
+    }
+
+    enum Admission: Equatable {
+        case go
+        case reclaim(String)
+        /// reason "memory": the Mac itself is short, and only `memoryWait`
+        /// waits. reason "queue": others go first or are still starting.
+        case wait(reason: String, detail: String)
+    }
+
+    /// Whether a new boot may start now. `position` is this request's place
+    /// in the queue, `pending` the boots already under way, `idle` a free
+    /// running pool simulator of another kind that could be shut down.
+    static func admission(position: Int, pending: Int, memory: MemoryStatus, policy: AdmissionPolicy,
+                          idle: String?) -> Admission {
+        // The Mac itself is short: waiting for other agents does not help.
+        let macShort = !policy.admits(memory, pendingBoots: 0)
+        let short = Admission.wait(reason: "memory", detail: policy.reason(memory, pendingBoots: 0))
+        guard position == 0 else {
+            if macShort && idle == nil { return short }
+            let ahead = position == 1 ? "1 other request for a new simulator was" : "\(position) other requests for a new simulator were"
+            return .wait(reason: "queue", detail: "\(ahead) still ahead in the queue")
+        }
+        if policy.admits(memory, pendingBoots: pending) { return .go }
+        if let idle { return .reclaim(idle) }
+        if macShort { return short }
+        // Memory is enough for one more, but not also for the ones already
+        // starting: wait for them to finish.
+        let starting = pending == 1 ? "1 other simulator was" : "\(pending) other simulators were"
+        return .wait(reason: "queue", detail: "\(starting) still starting, and there is memory for only one more at a time")
+    }
+
+    /// How long a request waits for `reason` before it is refused.
+    static func waitLimit(reason: String, _ req: LeaseRequest) -> TimeInterval {
+        reason == "memory" ? req.memoryWait : max(req.memoryWait, req.queueWait)
+    }
+
+    /// The refusal, with what uses the memory and the choices, read now.
+    static func refusal(reason: String, detail: String, waited: TimeInterval, position: Int,
+                        memory: MemoryStatus, req: LeaseRequest) async -> LeaseRefusal {
+        var r = LeaseRefusal(status: "refused", reason: reason, detail: detail, waitedSeconds: waited.rounded(),
+                             queuePosition: position, memory: memory, policy: req.policy)
+        guard reason == "memory" else {
+            r.nextStep = "Try again in a minute, or wait longer with `--wait-for-memory 10m`. `fast-ios leases` shows the queue."
+            return r
+        }
+        let advice = await MemoryAdvice.current(policy: req.policy, memory: memory, withApps: true)
+        r.usage = advice.usage
+        r.simulators = advice.simulators
+        r.largestApps = advice.largestApps
+        r.nextStep = advice.nextStep
+            + (req.memoryWait < 1 ? " Or wait for memory with `--wait-for-memory 5m` (a line about every 30 s while it waits)." : "")
+        return r
     }
 
     enum Decision {

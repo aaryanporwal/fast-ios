@@ -22,7 +22,7 @@ struct CLIBinaryTests {
     struct Run { let status: Int32; let out: String; let err: String; let seconds: Double }
 
     static func run(_ args: [String], executable: String? = nil, path: String? = nil, cwd: URL? = nil,
-                    stateDir: URL) throws -> Run {
+                    stateDir: URL, env extra: [String: String] = [:]) throws -> Run {
         let p = Process()
         if let executable {
             p.executableURL = URL(fileURLWithPath: "/usr/bin/env")
@@ -37,6 +37,7 @@ struct CLIBinaryTests {
         env["FASTIOS_AGENT_LABEL"] = testLabel
         env["FASTIOS_DEVICE_SET"] = nil
         if let path { env["PATH"] = path }
+        env.merge(extra) { _, new in new }
         p.environment = env
         if let cwd { p.currentDirectoryURL = cwd }
         let out = Pipe(), err = Pipe()
@@ -85,6 +86,32 @@ struct CLIBinaryTests {
         // JSON mode refuses the same way, as JSON.
         let r = try Self.run(["on", "--json", "--definitely-not-an-option"], stateDir: TestEnv.temp().appendingPathComponent("s"))
         #expect(r.status == 64 && r.out.contains("\"code\" : \"usage\""))
+    }
+
+    @Test("lease and run stop within seconds when memory is short, with memory_pressure and the choices")
+    func memoryShortFailsFast() throws {
+        guard Self.binary != nil else { Issue.record("fast-ios was not built next to the tests"); return }
+        // An empty device set and a reserve no Mac has: nothing can start,
+        // and nothing is created or shut down.
+        let set = TestEnv.temp()
+        let env = ["FASTIOS_RESERVE_MB": "99999999"]
+        let lease = try Self.run(["lease", "--full", "--set", set.path, "--json"], stateDir: TestEnv.temp(), env: env)
+        if lease.status == 1, lease.out.contains("No available iOS runtime") { return }  // a Mac with no simulator runtime
+        #expect(lease.status == 2, "\(lease.out)\(lease.err)")
+        #expect(lease.seconds < 20, "lease took \(lease.seconds) s")
+        #expect(lease.out.contains("\"reason\" : \"memory\""))
+        #expect(lease.out.contains("\"message\" : \"No simulator was started: "))
+        #expect(lease.out.contains("--wait-for-memory 5m"))
+
+        let run = try Self.run(["run", "--app", TestEnv.fixture("Sample.app").path, "--set", set.path, "--json"],
+                               stateDir: TestEnv.temp(), env: env)
+        #expect(run.status == 2, "\(run.out)\(run.err)")
+        #expect(run.seconds < 20, "run took \(run.seconds) s")
+        #expect(run.out.contains("\"code\" : \"memory_pressure\""))
+        #expect(run.out.contains("\"nextStep\""))
+        #expect(!run.out.contains("after waiting"))
+        let made = (try? FileManager.default.contentsOfDirectory(atPath: set.path)) ?? []
+        #expect(!made.contains { $0.count == 36 }, "a simulator was created: \(made)")
     }
 
     @Test("Run by bare name through PATH from another folder, on finds its own program")

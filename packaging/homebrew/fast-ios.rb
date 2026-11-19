@@ -4,15 +4,15 @@
 # 27.0.1; see docs/launch/checklist.md).
 #
 # Before publishing (see docs/launch/checklist.md):
-#   1. Tag v0.4.0 (the version in scripts/version.sh) and push the tag.
+#   1. Tag v0.4.1 (the version in scripts/version.sh) and push the tag.
 #   2. Replace OWNER below if the repository is not github.com/aaryanporwal/fast-ios.
 #   3. Set sha256 to the output of:
-#        curl -sL https://github.com/aaryanporwal/fast-ios/archive/refs/tags/v0.4.0.tar.gz | shasum -a 256
+#        curl -sL https://github.com/aaryanporwal/fast-ios/archive/refs/tags/v0.4.1.tar.gz | shasum -a 256
 #   4. Put this file in a tap repository named homebrew-fast-ios (Formula/fast-ios.rb).
 class FastIos < Formula
   desc "Light iOS simulators: one switch, and a simulator pool for agents"
   homepage "https://github.com/aaryanporwal/fast-ios"
-  url "https://github.com/aaryanporwal/fast-ios/archive/refs/tags/v0.4.0.tar.gz"
+  url "https://github.com/aaryanporwal/fast-ios/archive/refs/tags/v0.4.1.tar.gz"
   sha256 "0000000000000000000000000000000000000000000000000000000000000000"
   license "MIT"
   head "https://github.com/aaryanporwal/fast-ios.git", branch: "main"

@@ -3,8 +3,9 @@
 Back to the [README](../README.md).
 
 Five agents starting five full simulators is how a Mac runs out of memory.
-fast-ios gives each agent a light simulator from one shared pool, waits when
-memory is short, and takes the simulator back when the agent is done. Every
+fast-ios gives each agent a light simulator from one shared pool, says at
+once when memory is short (and what to do), and takes the simulator back
+when the agent is done. Every
 command prints one JSON object with `--json`, so an agent needs nothing but
 its shell.
 
@@ -121,7 +122,8 @@ created in a separate set).
 **JSON.** stdout is one JSON object (`watch` and `heal`: one per line) with
 `schemaVersion` (now 1). Errors are JSON on stdout with an `error.code` and
 exit code 1 (64 for bad arguments). A refused `lease` exits 2 with
-`"status": "refused"`. Some field names come from before the words light
+`"status": "refused"`; `run` refused for memory exits 2 with
+`error.code` `memory_pressure` (`queue_timeout` when the queue ran out). Some field names come from before the words light
 and full: `"slim": true` means light. Real samples for every command:
 [`docs/json-output.md`](json-output.md).
 
@@ -145,11 +147,18 @@ fast-ios leases --json        # who holds what, the pool, the queue, memory
   (`kern.memorystatus_vm_pressure_level`) is normal and available memory
   (free + inactive + speculative + purgeable pages) minus the starts in
   progress leaves `--need-mb` (1500) plus `--reserve-mb` (2048). Otherwise
-  the request waits in a first-come queue, an idle pool simulator of another
-  kind is shut down to make room, and after `--timeout` `lease` exits 2 with
-  JSON that says why (`reason`: `memory` or `queue`, `detail`,
-  `waitedSeconds`, `memory`, `policy`). `--max-pressure warning` relaxes the
-  pressure rule.
+  an idle pool simulator of another kind is shut down to make room, and if
+  there is none, `lease` and `run` stop within seconds with exit code 2.
+  The JSON says why (`reason` `memory`, `message`, `memory`), lists
+  `simulators` (`udid`, `name`, `memoryMB`, `leasedBy`, `fromPool`,
+  `appsRunning`) and `largestApps`, and gives `nextStep`: reuse a running
+  simulator (`run --simulator <udid>`), start anyway (`--max-pressure
+  warning`), or shut one down. fast-ios sees which apps run on a
+  simulator, not which one is in front. `--wait-for-memory 5m` waits
+  instead and prints a line to stderr about every 30 s (`--timeout` is
+  its old name). When memory is enough but other agents' simulators are
+  still starting, the request waits up to 5 minutes in a first-come queue
+  (`reason` `queue` if that runs out).
 - **Warm pool:** a released simulator keeps running for the next lease; idle
   pool simulators beyond `FASTIOS_MAX_IDLE` (1) are shut down.
 - **Safe for parallel callers:** state is in

@@ -18,8 +18,8 @@ run. A service comes back when an app needs it.
 
 Prefer the CLI with `--json`; the same commands are MCP tools when the
 `fast-ios` MCP server is connected. Errors are JSON too
-(`{"error": {"code", "message"}}`). Exit codes: 0 ok, 1 failed, 2 refused
-for memory or queue (try later), 64 bad arguments.
+(`{"error": {"code", "message"}}`). Exit codes: 0 ok, 1 failed, 2 no
+simulator started (memory short or queue), 64 bad arguments.
 `fast-ios <command> --help` shows options and examples; `fast-ios doctor`
 explains a broken setup. Some JSON field names come from older words:
 `"slim": true` means light.
@@ -62,12 +62,16 @@ fast-ios release "$UDID" --json
   until your process exits, so a crashed agent does not hold a simulator.
   While it is yours, make it light for another app, install and test on it
   freely, but never delete it.
-- When the Mac is short on memory, `run` and `lease` wait in a queue and
-  say why. After `--timeout` they answer `"status": "refused"` with `reason`
-  and `detail`, exit code 2. Do not start a simulator yourself to get
-  around a refusal: tell the user, wait, or release one you hold.
-  `--max-pressure warning` lets a new simulator start under memory pressure
-  "warning"; ask the user first.
+- When the Mac is short on memory, `run` and `lease` start nothing and
+  answer within seconds, exit code 2: `run` with `error.code`
+  `memory_pressure`, `lease` with `"status": "refused"` and `reason`
+  `memory`. Both list the running simulators (UDID, memory, `leasedBy`,
+  `appsRunning`) and `nextStep`. Do not start a simulator yourself to get
+  around it. Choose: reuse a running simulator nobody leases with
+  `run --simulator <udid>` (check its apps first), release one you hold,
+  or tell the user. `--max-pressure warning` starts one anyway under
+  pressure "warning"; ask the user first. `--wait-for-memory 5m` waits,
+  with a line on stderr about every 30 s.
 - `leases --json` shows who holds what.
 
 ## Skip the compile when native code is unchanged

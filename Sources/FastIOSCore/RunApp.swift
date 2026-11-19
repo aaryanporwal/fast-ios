@@ -58,8 +58,8 @@ public struct RunRequest: Sendable {
     public var retryOnBadSimulator = true
     /// When a new boot may start; see AdmissionPolicy.
     public var policy = AdmissionPolicy()
-    /// How long to wait for memory or the queue before giving up.
-    public var timeout: TimeInterval = 300
+    /// How long to wait while the Mac is short of memory. 0: refuse at once.
+    public var memoryWait: TimeInterval = 0
     /// The app cache, for a project folder: --build, --configuration, --variant.
     public var cache = AppCacheRequest()
     public init() {}
@@ -105,7 +105,7 @@ public enum AppRunner {
         } else {
             var req = LeaseRequest(profile: profile)
             req.runtime = r.runtime; req.deviceType = r.deviceType; req.ttl = r.ttl
-            req.policy = r.policy; req.timeout = r.timeout
+            req.policy = r.policy; req.memoryWait = r.memoryWait
             let lease = try await LeaseManager.lease(req, log: both)
             (udid, name, simulatorSource) = (lease.udid, lease.name, "leased")
             waited = lease.waitedSeconds

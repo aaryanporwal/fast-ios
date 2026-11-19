@@ -91,12 +91,24 @@ public enum JSONOutput {
     public static func error(_ error: Error) -> JSONValue {
         let (code, message) = classify(error)
         var body: [String: JSONValue] = ["code": .string(code), "message": .string(message)]
-        // A refused lease (from `run`) also says what to do next.
-        if let r = error as? LeaseRefusal, !r.nextStep.isEmpty { body["nextStep"] = .string(r.nextStep) }
+        // A refused lease (from `run`) also says why, what uses the memory
+        // and what to do next.
+        if let r = error as? LeaseRefusal {
+            if !r.nextStep.isEmpty { body["nextStep"] = .string(r.nextStep) }
+            body["reason"] = .string(r.reason)
+            body["waitedSeconds"] = .double(r.waitedSeconds)
+            body["memory"] = (try? value(r.memory)) ?? .null
+            if r.reason == "memory" {
+                body["simulators"] = (try? value(r.simulators)) ?? .array([])
+                body["largestApps"] = (try? value(r.largestApps)) ?? .array([])
+            }
+        }
         return ["schemaVersion": .int(Int64(schemaVersion)), "error": .object(body)]
     }
 
-    /// Stable error codes: usage, invalid_arguments, simulator, app, command_failed, internal.
+    /// Stable error codes: usage, invalid_arguments, simulator, app, command_failed,
+    /// memory_pressure (no simulator started: the Mac is short of memory),
+    /// queue_timeout (others' simulators were still starting), internal.
     public static func classify(_ error: Error) -> (code: String, message: String) {
         switch error {
         case let e as UsageError: ("usage", e.message)
@@ -104,6 +116,7 @@ public enum JSONOutput {
         case let e as SimctlError: ("simulator", e.message)
         case let e as InspectError: ("app", e.message)
         case let e as ShellError: ("command_failed", e.localizedDescription)
+        case let r as LeaseRefusal: (r.reason == "memory" ? "memory_pressure" : "queue_timeout", r.localizedDescription)
         default: ("internal", error.localizedDescription)
         }
     }

@@ -5,7 +5,9 @@ one object per line). Every object has `schemaVersion` (now 1); fields are
 only added, never renamed or removed, within a version. Fields that can be
 unknown are `null`, never missing. Errors are JSON on stdout with exit code 1;
 `error.code` is one of `usage`, `invalid_arguments`, `simulator`, `app`,
-`command_failed`, `internal`. A refused `lease` is an answer, not an error:
+`command_failed`, `memory_pressure` (no simulator started: the Mac is short
+of memory), `queue_timeout` (other agents' simulators were still starting),
+`internal`. Those two exit 2. A refused `lease` is an answer, not an error:
 `"status": "refused"` with exit code 2.
 
 Some field names come from before fast-ios settled on the words "light"
@@ -180,6 +182,39 @@ An error, `fast-ios measure nope --json` (exit code 1):
   "error" : {
     "code" : "simulator",
     "message" : "No simulator matches \"nope\"."
+  },
+  "schemaVersion" : 1
+}
+```
+
+`fast-ios run --app MyApp.app --json` at memory pressure warning (19 Nov
+2026, a 24 GB Mac; it answered in 0.8 s; `message` and `nextStep` are cut;
+the app bundle ids are replaced with neutral samples)
+
+```json
+{
+  "error" : {
+    "code" : "memory_pressure",
+    "largestApps" : [
+      { "memoryMB" : 22312, "name" : "claude" },
+      { "memoryMB" : 10981, "name" : "com.apple.Virtualization.VirtualMachine" },
+      { "memoryMB" : 8550, "name" : "Google Chrome" }
+    ],
+    "memory" : { "availableMB" : 3860, "pressure" : "warning", "totalMB" : 24576 },
+    "message" : "No simulator was started: macOS reports memory pressure as warning (3860 MB free), and fast-ios starts a new simulator only at normal pressure.\n…",
+    "nextStep" : "Reuse a running simulator no agent leases with `--simulator <udid>` (check its apps first), such as iPhone 17 Pro: `fast-ios run --simulator 90503035-3451-4241-9D3E-334F943A4329`. Or start a new one anyway with `--max-pressure warning` … Or wait for memory with `--wait-for-memory 5m` …",
+    "reason" : "memory",
+    "simulators" : [
+      {
+        "appsRunning" : [ "com.example.myapp", "com.example.other" ],
+        "fromPool" : false,
+        "leasedBy" : null,
+        "memoryMB" : 2240,
+        "name" : "iPhone 17 Pro",
+        "udid" : "90503035-3451-4241-9D3E-334F943A4329"
+      }
+    ],
+    "waitedSeconds" : 0
   },
   "schemaVersion" : 1
 }

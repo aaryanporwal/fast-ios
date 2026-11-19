@@ -60,7 +60,7 @@ public enum Pool {
         for _ in 0..<max(0, size) {
             var req = LeaseRequest(profile: profile)
             req.runtime = runtime; req.deviceType = deviceType
-            req.policy = policy; req.timeout = timeout
+            req.policy = policy; req.memoryWait = timeout; req.queueWait = timeout
             req.owner = "fast-ios pool"; req.ownerPid = getpid(); req.ttl = 600
             do {
                 let r = try await LeaseManager.lease(req, log: both)

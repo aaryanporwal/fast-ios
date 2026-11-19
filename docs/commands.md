@@ -75,9 +75,21 @@ simulator stays yours until `fast-ios release <udid>`, until `--ttl` passes
 (30 minutes), or until your shell exits. After that it keeps running, so the
 next `run` only installs and launches.
 
-When memory is short, `run` says why it waits, waits briefly, and then
-tells you what to do next: quit a simulator you do not need, or use one you
-already have with `--simulator <udid>`.
+When macOS memory pressure is above normal, or too little memory is free,
+`run` starts nothing and stops within seconds with exit code 2. It says
+why, lists the running simulators (name, UDID, memory, who holds it, which
+apps run on it) and the largest apps, and gives the choices:
+
+- reuse a running simulator: `fast-ios run --simulator <udid>`
+- start a new one anyway: `--max-pressure warning` (the Mac may slow down)
+- shut down a simulator you do not need: `xcrun simctl shutdown <udid>`
+- wait for memory: `--wait-for-memory 5m` prints a line about every 30 s
+  and stops with exit code 2 if memory is still short after 5 minutes
+
+`--timeout` is the old name of `--wait-for-memory` and still works. With
+`--json`, the error code is `memory_pressure`. A request behind another
+agent's simulator that is still starting waits up to 5 minutes for it,
+with the same progress lines; `lease` behaves the same way.
 
 ### Skip the compile: the app cache
 
@@ -168,7 +180,7 @@ Every command takes `--set <path>` for a separate set of simulators (a
 CoreSimulator device set; the folder is created if it does not exist),
 `--json` for machine-readable output, and `--help` for its options and
 examples. Exit codes, for every command: `0` ok, `1` failed (the error says
-the next step), `2` refused for memory or queue (try again later), `64` bad
+the next step), `2` no simulator started: memory is short or the queue ran out (the error says what to do), `64` bad
 arguments.
 
 ## Keep a service on

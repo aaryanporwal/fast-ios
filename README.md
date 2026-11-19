@@ -57,8 +57,9 @@ fast-ios run
 ## For coding agents
 
 Five agents starting five full simulators is how a Mac runs out of memory.
-fast-ios gives each agent a light simulator from one shared pool, waits when
-memory is short, and takes it back when the agent is done. Every command
+fast-ios gives each agent a light simulator from one shared pool, says at
+once when memory is short (and what to do), and takes it back when the
+agent is done. Every command
 takes `--json`.
 
 ```bash

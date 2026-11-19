@@ -19,24 +19,81 @@ struct FirstTimeUXTests {
         #expect(!MemoryAdvice.judge(Self.warning, policy: policy).canStart)
 
         let running = TestEnv.device("AAAAAAAA-0000-0000-0000-000000000001")
-        let advice = MemoryAdvice.build(memory: Self.warning, policy: policy, devices: [running],
-                                        measured: [running.udid: SimMeasurement(processes: 90, bytes: 800 * Self.mb)],
+        let leased = TestEnv.device("AAAAAAAA-0000-0000-0000-000000000003")
+        let advice = MemoryAdvice.build(memory: Self.warning, policy: policy, devices: [running, leased],
+                                        measured: [running.udid: SimMeasurement(processes: 90, bytes: 800 * Self.mb),
+                                                   leased.udid: SimMeasurement(processes: 95, bytes: 2100 * Self.mb)],
+                                        leasedBy: [leased.udid: "claude[42]"], pool: [leased.udid],
+                                        apps: [running.udid: ["com.example.myapp"]],
                                         otherSimulators: (2, 1900), largestApps: [("Xcode", 3100)])
         #expect(!advice.canStartNew)
         #expect(advice.why.contains("memory pressure as warning"))
-        #expect(advice.usage.contains { $0.contains("Test iPhone 800 MB") })
+        // Each running simulator: name, UDID, memory, who holds it, apps; largest first.
+        #expect(advice.simulators.map(\.udid) == [leased.udid, running.udid])
+        #expect(advice.usage.contains("- Test iPhone (\(leased.udid)): 2100 MB, leased by claude[42]."))
+        #expect(advice.usage.contains("- Test iPhone (\(running.udid)): 800 MB, not from the fast-ios pool, apps running: com.example.myapp."))
+        #expect(advice.usage.contains { $0.contains("not which one is in front") })
         #expect(advice.usage.contains { $0.contains("2 more simulators") && $0.contains("1.9 GB") })
         #expect(advice.usage.contains { $0.contains("Xcode 3.0 GB") })
-        #expect(advice.nextStep.contains("shutdown \(running.udid)"))
-        #expect(advice.nextStep.contains("--max-pressure warning"))
-        #expect(advice.nextStep.contains("--simulator <udid>"))
+        #expect(advice.largestApps == [AppMemory(name: "Xcode", memoryMB: 3100)])
+        // The choices, in order: reuse one nobody leases, start anyway, shut one down.
+        let reuse = advice.nextStep.range(of: "fast-ios run --simulator \(running.udid)")
+        let anyway = advice.nextStep.range(of: "--max-pressure warning")
+        let stop = advice.nextStep.range(of: "shutdown \(running.udid)")
+        #expect(reuse != nil && anyway != nil && stop != nil)
+        if let reuse, let anyway, let stop { #expect(reuse.lowerBound < anyway.lowerBound && anyway.lowerBound < stop.lowerBound) }
+        #expect(!advice.nextStep.contains(leased.udid), "never suggests a simulator another agent holds")
     }
 
-    @Test("A person waits 30 s, scripts and agents 5 min; the refusal reads as an outcome and a next step")
+    @Test("Only non-Apple apps are listed from a simulator's launchd jobs")
+    func appsFromLaunchctl() {
+        let text = """
+        PID\tStatus\tLabel
+        4079\t0\tUIKitApplication:com.apple.mobilecal[0cb4][rb-legacy]
+        3197\t0\tUIKitApplication:com.example.myapp[9074][rb-legacy]
+        3198\t0\tUIKitApplication:com.example.myapp[9075][rb-legacy]
+        -\t0\tcom.apple.backboardd
+        """
+        #expect(MemoryAdvice.appIDs(fromLaunchctlList: text) == ["com.example.myapp"])
+    }
+
+    @Test("A Mac short of memory refuses at once; a wait for other agents' starts goes on")
+    func admissionFailsFast() {
+        let policy = AdmissionPolicy(needMB: 1500, reserveMB: 2048, maxPressure: "normal")
+        // Warning pressure: refused for memory, first in line or not.
+        guard case .wait(let reason, _) = LeaseManager.admission(position: 0, pending: 0, memory: Self.warning, policy: policy, idle: nil),
+              case .wait(let behind, _) = LeaseManager.admission(position: 2, pending: 0, memory: Self.warning, policy: policy, idle: nil) else {
+            Issue.record("expected a wait"); return
+        }
+        #expect(reason == "memory" && behind == "memory")
+        // An idle pool simulator is shut down first, and the head of the queue does it.
+        #expect(LeaseManager.admission(position: 0, pending: 0, memory: Self.warning, policy: policy, idle: "IDLE") == .reclaim("IDLE"))
+        guard case .wait("queue", _) = LeaseManager.admission(position: 1, pending: 0, memory: Self.warning, policy: policy, idle: "IDLE") else {
+            Issue.record("behind the head, an idle simulator means wait in the queue"); return
+        }
+        // Enough memory for one, but another is still starting: wait in the queue.
+        let one = MemoryStatus(availableMB: 4000, totalMB: 24576, pressure: "normal")
+        guard case .wait("queue", let detail) = LeaseManager.admission(position: 0, pending: 1, memory: one, policy: policy, idle: nil) else {
+            Issue.record("expected a queue wait"); return
+        }
+        #expect(detail.hasPrefix("1 other simulator was still starting"))
+        #expect(LeaseManager.admission(position: 0, pending: 0, memory: Self.normal, policy: policy, idle: nil) == .go)
+        #expect(LeaseManager.admission(position: 0, pending: 0, memory: Self.warning, policy: AdmissionPolicy(maxPressure: "warning"), idle: nil) == .go)
+
+        // By default memory gets no wait; the queue gets 5 min; --wait-for-memory raises both.
+        var req = LeaseRequest(profile: Profiler.full())
+        #expect(LeaseManager.waitLimit(reason: "memory", req) == 0)
+        #expect(LeaseManager.waitLimit(reason: "queue", req) == 300)
+        req.memoryWait = 600
+        #expect(LeaseManager.waitLimit(reason: "memory", req) == 600 && LeaseManager.waitLimit(reason: "queue", req) == 600)
+    }
+
+    @Test("The refusal reads as an outcome and a next step, and run --json says memory_pressure")
     func waitsAndRefusalText() {
-        #expect(LeaseManager.defaultWait(forPerson: true) == 30)
-        #expect(LeaseManager.defaultWait(forPerson: false) == 300)
         #expect(LeaseManager.duration(30) == "30 s" && LeaseManager.duration(300) == "5 min" && LeaseManager.duration(90) == "1 min 30 s")
+        let now = LeaseRefusal(status: "refused", reason: "memory", detail: "memory pressure is warning", waitedSeconds: 0,
+                               queuePosition: 0, memory: Self.warning, policy: AdmissionPolicy(maxPressure: "normal"))
+        #expect(now.headline == "No simulator was started: macOS reports memory pressure as warning (4700 MB free), and fast-ios starts a new simulator only at normal pressure.")
         var r = LeaseRefusal(status: "refused", reason: "memory", detail: "memory pressure is warning", waitedSeconds: 30,
                              queuePosition: 0, memory: Self.warning, policy: AdmissionPolicy(maxPressure: "normal"))
         r.nextStep = "Shut down a simulator."
@@ -47,7 +104,14 @@ struct FirstTimeUXTests {
         // run --json keeps the old error shape and adds the next step.
         let json = JSONOutput.error(r)
         #expect(json["error"]?["nextStep"]?.string == "Shut down a simulator.")
-        #expect(json["error"]?["code"]?.string != nil)
+        #expect(json["error"]?["code"]?.string == "memory_pressure")
+        #expect(json["error"]?["reason"]?.string == "memory")
+        #expect(json["error"]?["memory"]?["pressure"]?.string == "warning")
+        #expect(json["error"]?["simulators"]?.array != nil && json["error"]?["largestApps"]?.array != nil)
+        let queue = LeaseRefusal(status: "refused", reason: "queue", detail: "1 other simulator was still starting", waitedSeconds: 300,
+                                 queuePosition: 0, memory: Self.normal, policy: AdmissionPolicy())
+        #expect(JSONOutput.classify(queue).code == "queue_timeout")
+        #expect(queue.headline == "No simulator was started: after waiting 300 s, 1 other simulator was still starting.")
     }
 
     // MARK: 2. run shows the app (5.5)
